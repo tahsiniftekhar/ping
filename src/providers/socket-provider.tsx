@@ -37,30 +37,35 @@ function toRestShape(message: SocketMessageNew) {
  * Inserts a realtime message into a conversation's first history page.
  * Pages are newest-first (`messages[0]` is the newest), so the new message is
  * unshifted onto page 0. Pagination metadata (`pageParam` cursors, `hasMore`)
- * is untouched. Duplicate ids are ignored.
+ * is untouched. Duplicate ids are ignored. The updater form of setQueryData
+ * reads the latest cache value atomically, so a concurrent refetch cannot be
+ * clobbered by a stale read-then-write.
  */
 function insertIntoHistory(
   queryClient: QueryClient,
   conversationId: string,
   socketMessage: SocketMessageNew,
 ) {
-  const key = messageKeys.history(conversationId);
-  const existing = queryClient.getQueryData<InfiniteData<MessageHistoryResponse>>(key);
-  if (!existing) return; // history never loaded for this conversation; refetch covers it
+  queryClient.setQueryData<InfiniteData<MessageHistoryResponse> | undefined>(
+    messageKeys.history(conversationId),
+    (existing) => {
+      if (!existing) return undefined; // history never loaded; refetch covers it
 
-  const alreadyPresent = existing.pages.some((page) =>
-    page.messages.some((message) => message._id === socketMessage.id),
+      const alreadyPresent = existing.pages.some((page) =>
+        page.messages.some((message) => message._id === socketMessage.id),
+      );
+      if (alreadyPresent) return existing;
+
+      return {
+        ...existing,
+        pages: existing.pages.map((page, index) =>
+          index === 0
+            ? { ...page, messages: [toRestShape(socketMessage), ...page.messages] }
+            : page,
+        ),
+      };
+    },
   );
-  if (alreadyPresent) return;
-
-  queryClient.setQueryData<InfiniteData<MessageHistoryResponse>>(key, {
-    ...existing,
-    pages: existing.pages.map((page, index) =>
-      index === 0
-        ? { ...page, messages: [toRestShape(socketMessage), ...page.messages] }
-        : page,
-    ),
-  });
 }
 
 interface SocketContextValue {
