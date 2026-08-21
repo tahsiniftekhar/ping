@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  addParticipants,
   createGroup,
   fetchConversations,
+  removeParticipant,
   renameGroup,
   startDirectConversation,
 } from "@/features/conversations/api";
@@ -60,6 +62,28 @@ export function useRenameGroup(conversationId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (name: string) => renameGroup(conversationId, name),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: conversationKeys.all });
+    },
+  });
+}
+
+/** Adds members (admin only); invalidation is the single source of truth. */
+export function useAddParticipants(conversationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userIds: string[]) => addParticipants(conversationId, userIds),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: conversationKeys.all });
+    },
+  });
+}
+
+/** Removes a member (admin only); invalidation is the single source of truth. */
+export function useRemoveParticipant(conversationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => removeParticipant(conversationId, userId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: conversationKeys.all });
     },

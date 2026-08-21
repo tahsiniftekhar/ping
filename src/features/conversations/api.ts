@@ -39,3 +39,19 @@ export function createGroup(name: string, participantIds: string[]) {
 export function renameGroup(conversationId: string, name: string) {
   return apiClient.patch<GroupConversation>(`/conversations/${conversationId}`, { name });
 }
+
+/**
+ * POST /conversations/{id}/participants (verified: 200 with full group object;
+ * 403 FORBIDDEN for non-admins; 400 UNKNOWN_USER for unknown ids).
+ */
+export function addParticipants(conversationId: string, userIds: string[]) {
+  return apiClient.post<GroupConversation>(`/conversations/${conversationId}/participants`, { userIds });
+}
+
+/**
+ * DELETE /conversations/{id}/participants/{userId} (verified: 200 with full
+ * group object; 403 FORBIDDEN for non-admins removing others).
+ */
+export function removeParticipant(conversationId: string, userId: string) {
+  return apiClient.delete<GroupConversation>(`/conversations/${conversationId}/participants/${userId}`);
+}
