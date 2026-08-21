@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { conversationTitle } from "@/features/conversations/helpers";
+import { GroupDetailsDialog } from "@/components/chat/group-details-dialog";
 import { chronologicMessages, messageKeys, useMessageHistory } from "@/features/messages/queries";
 import { messageTimeLabel } from "@/features/messages/helpers";
 import { useSendMessage, type PendingMessage } from "@/features/messages/use-send-message";
@@ -111,6 +112,7 @@ export function MessagePanel({
   );
 
   const [draft, setDraft] = useState("");
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   // scrollHeight captured before older messages are prepended, to anchor restore.
   const previousScrollHeight = useRef<number | null>(null);
@@ -244,8 +246,18 @@ export function MessagePanel({
           <h2 className="truncate text-sm font-semibold">{conversationTitle(conversation)}</h2>
           <p className="text-muted-foreground truncate text-xs">{subtitle}</p>
         </div>
+        {conversation.type === "group" && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto shrink-0"
+            onClick={() => setDetailsOpen(true)}
+          >
+            Details
+          </Button>
+        )}
         {!connected && (
-          <span className="text-destructive ml-auto shrink-0 text-xs">Reconnecting…</span>
+          <span className="text-destructive shrink-0 text-xs">Reconnecting…</span>
         )}
       </header>
 
@@ -339,6 +351,14 @@ export function MessagePanel({
           </Button>
         </div>
       </footer>
+      {conversation.type === "group" && (
+        <GroupDetailsDialog
+          group={conversation}
+          currentUserId={currentUserId}
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+        />
+      )}
     </section>
   );
 }

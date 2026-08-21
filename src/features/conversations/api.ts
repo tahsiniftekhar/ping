@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api/client";
-import type { ConversationListResponse } from "@/types/api";
+import type { ConversationListResponse, GroupConversation } from "@/types/api";
 
 export function fetchConversations() {
   return apiClient.get<ConversationListResponse>("/conversations");
@@ -30,4 +30,12 @@ export interface CreatedGroup {
 
 export function createGroup(name: string, participantIds: string[]) {
   return apiClient.post<CreatedGroup>("/conversations/group", { name, participantIds });
+}
+
+/**
+ * PATCH /conversations/{id} (verified: 200 with the full updated group object;
+ * 403 FORBIDDEN for non-admins).
+ */
+export function renameGroup(conversationId: string, name: string) {
+  return apiClient.patch<GroupConversation>(`/conversations/${conversationId}`, { name });
 }

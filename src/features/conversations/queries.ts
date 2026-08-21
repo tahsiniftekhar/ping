@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createGroup,
   fetchConversations,
+  renameGroup,
   startDirectConversation,
 } from "@/features/conversations/api";
 
@@ -47,6 +48,20 @@ export function useCreateGroup() {
     onSuccess: async (group) => {
       await queryClient.invalidateQueries({ queryKey: conversationKeys.all });
       return group._id;
+    },
+  });
+}
+
+/**
+ * Renames a group (admin only) and invalidates the list — the refreshed query
+ * establishes the new name everywhere. No optimistic updates by design.
+ */
+export function useRenameGroup(conversationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => renameGroup(conversationId, name),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: conversationKeys.all });
     },
   });
 }
