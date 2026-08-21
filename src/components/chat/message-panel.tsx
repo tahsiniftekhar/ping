@@ -90,9 +90,12 @@ function MessageBubble({
 export function MessagePanel({
   conversation,
   currentUserId,
+  onConversationLeft,
 }: {
   conversation: Conversation;
   currentUserId: string;
+  /** Invoked when the user leaves this conversation (group). */
+  onConversationLeft: () => void;
 }) {
   const {
     data,
@@ -357,6 +360,7 @@ export function MessagePanel({
           currentUserId={currentUserId}
           open={detailsOpen}
           onOpenChange={setDetailsOpen}
+          onLeft={onConversationLeft}
         />
       )}
     </section>

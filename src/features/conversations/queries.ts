@@ -3,6 +3,7 @@ import {
   addParticipants,
   createGroup,
   fetchConversations,
+  promoteToAdmin,
   removeParticipant,
   renameGroup,
   startDirectConversation,
@@ -84,6 +85,32 @@ export function useRemoveParticipant(conversationId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (userId: string) => removeParticipant(conversationId, userId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: conversationKeys.all });
+    },
+  });
+}
+
+/** Promotes a member to admin; invalidation is the single source of truth. */
+export function usePromoteToAdmin(conversationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => promoteToAdmin(conversationId, userId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: conversationKeys.all });
+    },
+  });
+}
+
+/**
+ * Leaves the group (DELETE with the current user's own id). Callers must
+ * clear their selected conversation on success — the refetched list no longer
+ * contains the group, so the panel must not stay mounted for it.
+ */
+export function useLeaveGroup(conversationId: string, currentUserId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => removeParticipant(conversationId, currentUserId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: conversationKeys.all });
     },

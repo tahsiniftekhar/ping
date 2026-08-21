@@ -95,7 +95,11 @@ export default function ChatPage() {
         />
       </aside>
       {selectedConversation ? (
-        <MessagePanel conversation={selectedConversation} currentUserId={user._id} />
+        <MessagePanel
+          conversation={selectedConversation}
+          currentUserId={user._id}
+          onConversationLeft={() => setSelectedConversationId(null)}
+        />
       ) : (
         <section className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
           <h2 className="text-base font-medium">Select a conversation</h2>

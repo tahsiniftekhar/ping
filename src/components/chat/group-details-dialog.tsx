@@ -4,6 +4,8 @@ import { useState } from "react";
 import { conversationTitle } from "@/features/conversations/helpers";
 import {
   useAddParticipants,
+  useLeaveGroup,
+  usePromoteToAdmin,
   useRemoveParticipant,
   useRenameGroup,
 } from "@/features/conversations/queries";
@@ -36,11 +38,14 @@ export function GroupDetailsDialog({
   currentUserId,
   open,
   onOpenChange,
+  onLeft,
 }: {
   group: GroupConversation;
   currentUserId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Called after the current user successfully left this group. */
+  onLeft: () => void;
 }) {
   const isAdmin = group.admins.includes(currentUserId);
 
@@ -62,6 +67,11 @@ export function GroupDetailsDialog({
   // remove member: id of the member pending a confirm click
   const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(null);
   const removeMutation = useRemoveParticipant(group._id);
+  const promoteMutation = usePromoteToAdmin(group._id);
+
+  // leave group
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
+  const leaveMutation = useLeaveGroup(group._id, currentUserId);
 
   const memberIds = new Set(group.participants.map((p) => p._id));
 
@@ -73,6 +83,7 @@ export function GroupDetailsDialog({
     setSearchInput("");
     setSelectedNewMembers([]);
     setConfirmingRemoveId(null);
+    setConfirmingLeave(false);
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -120,6 +131,16 @@ export function GroupDetailsDialog({
       await removeMutation.mutateAsync(userId);
     } finally {
       setConfirmingRemoveId(null);
+    }
+  }
+
+  async function handleLeave() {
+    try {
+      await leaveMutation.mutateAsync();
+      handleOpenChange(false);
+      onLeft();
+    } catch {
+      // error rendered below; confirmation stays for retry
     }
   }
 
@@ -346,8 +367,23 @@ export function GroupDetailsDialog({
                     {participant.phone}
                   </span>
                 </span>
-                {admin && (
+                {admin ? (
                   <span className="bg-muted shrink-0 rounded-full px-2 py-0.5 text-xs">Admin</span>
+                ) : (
+                  isAdmin &&
+                  !you && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground shrink-0"
+                      disabled={promoteMutation.isPending}
+                      onClick={() => void promoteMutation.mutateAsync(participant._id).catch(() => {})}
+                    >
+                      {promoteMutation.isPending && promoteMutation.variables === participant._id
+                        ? "Promoting…"
+                        : "Make admin"}
+                    </Button>
+                  )
                 )}
                 {removable &&
                   (confirming ? (
@@ -387,6 +423,38 @@ export function GroupDetailsDialog({
         {removeMutation.isError && (
           <p role="alert" className="text-destructive text-sm">
             {errorText(removeMutation.error, "Could not remove the member. Please try again.")}
+          </p>
+        )}
+        {promoteMutation.isError && (
+          <p role="alert" className="text-destructive text-sm">
+            {errorText(promoteMutation.error, "Could not promote the member. Please try again.")}
+          </p>
+        )}
+
+        {/* Leave group (all members) */}
+        {confirmingLeave ? (
+          <div className="flex flex-col gap-2 rounded-md border border-destructive/40 p-3">
+            <p className="text-sm font-medium">Leave group?</p>
+            <p className="text-muted-foreground text-xs">
+              You will no longer receive messages from this group.
+            </p>
+            <div className="flex justify-end gap-1">
+              <Button variant="ghost" size="sm" disabled={leaveMutation.isPending} onClick={() => setConfirmingLeave(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" size="sm" disabled={leaveMutation.isPending} onClick={() => void handleLeave()}>
+                {leaveMutation.isPending ? "Leaving…" : "Leave group"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button variant="outline" size="sm" className="text-destructive" onClick={() => setConfirmingLeave(true)}>
+            Leave group
+          </Button>
+        )}
+        {leaveMutation.isError && (
+          <p role="alert" className="text-destructive text-sm">
+            {errorText(leaveMutation.error, "Could not leave the group. Please try again.")}
           </p>
         )}
       </DialogContent>

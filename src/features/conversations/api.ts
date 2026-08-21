@@ -55,3 +55,11 @@ export function addParticipants(conversationId: string, userIds: string[]) {
 export function removeParticipant(conversationId: string, userId: string) {
   return apiClient.delete<GroupConversation>(`/conversations/${conversationId}/participants/${userId}`);
 }
+
+/**
+ * POST /conversations/{id}/admins (verified: 200 with full group object;
+ * 403 FORBIDDEN for non-admins; promoting an existing admin is an idempotent 200).
+ */
+export function promoteToAdmin(conversationId: string, userId: string) {
+  return apiClient.post<GroupConversation>(`/conversations/${conversationId}/admins`, { userId });
+}
