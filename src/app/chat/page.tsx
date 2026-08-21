@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ConversationList } from "@/components/chat/conversation-list";
+import { MessagePanel } from "@/components/chat/message-panel";
 import { NewConversationDialog } from "@/components/chat/new-conversation-dialog";
-import { conversationTitle } from "@/features/conversations/helpers";
 import { useConversations } from "@/features/conversations/queries";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/providers/auth-provider";
@@ -74,23 +74,16 @@ export default function ChatPage() {
           currentUserId={user._id}
         />
       </aside>
-      <section className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
-        {selectedConversation ? (
-          <>
-            <h2 className="text-base font-medium">{conversationTitle(selectedConversation)}</h2>
-            <p className="text-muted-foreground text-sm">
-              Messages will appear here once messaging is built.
-            </p>
-          </>
-        ) : (
-          <>
-            <h2 className="text-base font-medium">Select a conversation</h2>
-            <p className="text-muted-foreground text-sm">
-              Your messages will appear here once conversations can be opened.
-            </p>
-          </>
-        )}
-      </section>
+      {selectedConversation ? (
+        <MessagePanel conversation={selectedConversation} currentUserId={user._id} />
+      ) : (
+        <section className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
+          <h2 className="text-base font-medium">Select a conversation</h2>
+          <p className="text-muted-foreground text-sm">
+            Pick a conversation to see its messages.
+          </p>
+        </section>
+      )}
       <NewConversationDialog
         open={newConversationOpen}
         onOpenChange={setNewConversationOpen}
