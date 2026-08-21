@@ -11,7 +11,7 @@ Socket.io: `https://frontend-task-chatapp.onrender.com` (host root, `/socket.io/
 - **Verified.** `POST /auth/login` returns `{ token, user }`; token is a JWT
   (HS256, `sub`/`iat`/`exp` claims). Protected routes require
   `Authorization: Bearer <token>`. The Socket.io handshake authenticates with
-  `auth: { token }` (documented; handshake rejection behavior not observed).
+  `auth: { token }` (rejection behavior verified — see Socket.io section).
 - Login doubles as registration: new phone numbers create accounts automatically.
 
 ## Endpoints — verified request behavior
@@ -63,8 +63,9 @@ Socket.io: `https://frontend-task-chatapp.onrender.com` (host root, `/socket.io/
 6. **Render free tier behind Cloudflare**: cold starts can take tens of seconds;
    first request after idle may be slow. Design loading states accordingly.
 7. **Error status codes observed**: 400 `NO_TOKEN`, 400 `VALIDATION_ERROR` (with
-   `details: [{ path, message }]`), 404 `NOT_FOUND`. Admin-permission errors and
-   401-on-bad-token responses not yet observed.
+   `details: [{ path, message }]`), 404 `NOT_FOUND`, 500 `SERVER_ERROR` (malformed
+   ObjectId; message leaks a Mongo cast error). Admin-permission errors and
+   401-on-expired-token responses not yet observed.
 
 ## Pagination
 
@@ -82,12 +83,64 @@ Socket.io: `https://frontend-task-chatapp.onrender.com` (host root, `/socket.io/
 - Socket.io must connect to the host root (`io(socketUrl, { auth: { token } })`),
   not to the `/api` base.
 
+## Socket.io — verified contract (live probe, 2026-08-21)
+
+Connection:
+- `io(SOCKET_URL /* host root */, { auth: { token } })` connects successfully.
+  Handshake starts on **polling**, then upgrades to websocket (Engine.IO v4).
+- Invalid token → `connect_error` `"Invalid token"` (`err.data` is `null`).
+
+`message:send` (client → server) — `{ conversationId, text }`:
+- Acknowledgement **is** sent when a callback is provided.
+- Success ack: `{ ok: true }` — **no message object, no id**.
+- Failure ack (e.g. unknown conversation): `{ ok: false, error: "Conversation not found" }`.
+
+`message:new` (server → client) — exact observed payload:
+```json
+{ "id": "<ObjectId>", "conversation": "<ObjectId>", "sender": "<userId>", "text": "...", "createdAt": 1787338932458 }
+```
+- Uses **`id`, not `_id`**, and `createdAt` is an **epoch-millis number** (REST
+  history returns `_id` and ISO strings for the same message). Normalize when
+  merging with REST data.
+- **The sender does NOT receive `message:new` for their own messages** (verified
+  in both direct and group chats); only other participants receive it.
+- The payload **is the persisted message**: `id` matches the `_id` returned by
+  `GET /conversations/{id}/messages`, and `createdAt` (÷1000) matches the REST
+  ISO timestamp.
+- Fires for messages sent via REST `POST /messages` too (verified).
+
+`conversation:updated` (server → client):
+- Payload is the **full group conversation object** (same shape as group items
+  from `GET /conversations`, but without `lastMessage`): `{ _id, type: "group",
+  name, createdBy, admins, participants: User[] }`.
+- Fires on group creation and rename (verified), delivered to all participants
+  with a connected socket — observed arriving even before the REST response.
+- Does **not** fire for direct-conversation creation or for new messages
+  (verified — neither event occurred during direct-chat probes).
+
+Disconnection: client `close()` → `disconnect` reason `io client disconnect`; no
+unexpected server-side disconnects observed during the probe.
+
+## Additional verified REST behavior (probe, 2026-08-21)
+
+- `POST /conversations` (fresh pair) → 200 `{ _id, participants: [userId, userId], createdAt }`.
+- `POST /conversations/group` (3 members) → **201** with the full group object
+  (same shape as `GET /conversations` group items, plus `createdAt`/`updatedAt`).
+- `PATCH /conversations/{id}` (rename) → 200 with the full updated group object.
+- `POST /messages` on a **valid** conversation → 200 with the full message
+  object `{ _id, conversation, sender, text, createdAt(ISO) }`. The earlier
+  200-with-`null` occurred on a nonexistent conversation id.
+- Group validation: `participantIds` must yield ≥3 members total, else
+  400 `VALIDATION_ERROR` ("a group needs at least 3 members").
+- Malformed ObjectId in a path → **500 `SERVER_ERROR`** leaking a Mongo cast
+  error string. Handle 5xx generically; don't parse the message.
+
 ## Unverified behavior (do not rely on without testing)
 
-- Response bodies/status codes for: `POST /conversations`, `POST /conversations/group`,
-  participant/admin/rename endpoints, successful `POST /messages`.
-- Socket event payload shapes (`message:new`, `conversation:updated`) and the
-  `message:send` ack callback signature.
+- Response bodies for participant add/remove, promote-to-admin, leave-group.
+- `conversation:updated` for member/admin changes (only create + rename verified).
 - Whether `POST /conversations` is idempotent for an existing pair.
 - JWT expiry duration (observed `iat`/`exp` imply ~7 days, not confirmed).
-- `lastMessage` shape for groups; ordering guarantees of `GET /conversations`.
+- `lastMessage` shape for groups; ordering guarantees of `GET /conversations`;
+  the `before` cursor semantics (id vs timestamp).
+- Whether a 401 (expired/invalid but well-formed) token returns 401 or 400.

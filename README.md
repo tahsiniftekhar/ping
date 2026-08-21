@@ -1,4 +1,4 @@
-# Chat App — Senior Frontend Engineer Take-Home
+# Ping — Real-Time Chat App
 
 Real-time 1-to-1 and group chat (Next.js + TypeScript) against the provided
 external API (REST + Socket.io). Landing page showcase included.

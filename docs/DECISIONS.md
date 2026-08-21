@@ -70,19 +70,26 @@ sanitized rendering of message text (React escapes by default), token kept out
 of logs. In a production setting we'd push for httpOnly cookies via a backend
 proxy. Flagged as a known limitation for the write-up.
 
-## 6. Socket.io `message:send` as the primary messaging mechanism — 2026-08-22
+## 6. Socket.io `message:send` as the primary messaging mechanism — 2026-08-22 (updated after live probe)
 
-**Decision:** Socket.io `message:send` will be the primary realtime messaging
-mechanism, with REST `POST /messages` as fallback. **Optimistic reconciliation
-is not decided yet** — it will be decided after the `message:new` payload and
-the acknowledgement behavior are verified against the live socket.
+**Decision:** Socket.io `message:send` is the primary send path, with REST
+`POST /messages` as fallback. The live probe (2026-08-21, see docs/API.md)
+confirmed the ack is `{ ok: true }` on success and `{ ok: false, error }` on
+failure — **it contains no message id**, and the sender never receives
+`message:new` for their own messages.
 
-**Rationale:** Observed 200-with-`null` responses from `POST /messages` make the
-REST reply useless as a delivery signal, so the socket is the natural primary
-channel. Whether we can reconcile optimistic entries safely (dedupe keys, ack
-semantics, rollback behavior) depends on payload shapes that are still unverified.
+**Consequence — no safe optimistic reconciliation key.** Because neither the ack
+nor a sender-side `message:new` provides a correlation id for the sent message,
+full optimistic updates (append → reconcile by id → rollback) cannot be
+correlated safely. The initial implementation will therefore use a
+**server-confirmed/pending approach**: append the message locally in a
+*pending* state, mark it *delivered* on `{ ok: true }`, and surface an error /
+retry on failure ack or timeout. Canonical message state (real ids, ISO
+timestamps) comes from REST history and from `message:new` (which carries `id`
++ epoch-millis `createdAt` and must be normalized). Revisit optimistic
+reconciliation only if a correlation mechanism surfaces later.
 
-**Trade-off:** Deferring the optimistic-update decision means the first
-implementation may use a simpler pessimistic flow (pending state until
-`message:new`/ack) and be refined once realtime behavior is verified. Two send
-paths (socket + REST fallback) still need to stay consistent either way.
+**Trade-off:** Slightly less instant "sent" feedback than a full optimistic
+flow, and pending entries are lost on remount until refetched. In exchange, no
+risk of duplicate or phantom messages, and the two channels (socket + REST
+fallback) stay consistent via server confirmation.
