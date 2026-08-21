@@ -121,13 +121,48 @@ Connection:
 - Payload is the **full group conversation object** (same shape as group items
   from `GET /conversations`, but without `lastMessage`): `{ _id, type: "group",
   name, createdBy, admins, participants: User[] }`.
-- Fires on group creation and rename (verified), delivered to all participants
-  with a connected socket — observed arriving even before the REST response.
+- Fires on group creation, rename, participant add/remove, leave, and promote
+  (all verified), delivered to **all participants with a connected socket** —
+  observed arriving even before the REST response.
+- **Quirk (verified): a REMOVED participant still receives the
+  `conversation:updated` event for their own removal.** Clients must refetch
+  rather than assume the event implies membership — the removed user's
+  `GET /conversations` no longer includes the group.
+- **Quirk (verified): the event can also fire after a FAILED mutation** — a 400
+  `UNKNOWN_USER` add still emitted `conversation:updated`. Harmless if the
+  event only triggers a list refetch.
 - Does **not** fire for direct-conversation creation or for new messages
   (verified — neither event occurred during direct-chat probes).
 
 Disconnection: client `close()` → `disconnect` reason `io client disconnect`; no
 unexpected server-side disconnects observed during the probe.
+
+## Group management — verified contract (live probe, 2026-08-21/22)
+
+All four endpoints return the **full updated group object** (same shape as
+group items from `GET /conversations`, plus `createdAt`/`updatedAt`) on success,
+and all emit `conversation:updated` to every connected participant (including
+the removed user; see quirks above).
+
+| Endpoint | Success | Failure behavior |
+|---|---|---|
+| `PATCH /conversations/{id}` (rename, admin only) | 200 + group object | 403 `FORBIDDEN` "Only admins can rename the group" for non-admins; name persists in `GET /conversations` |
+| `POST /conversations/{id}/participants` (admin only) | 200 + group object | 403 `FORBIDDEN` "Only admins can add participants"; 400 `UNKNOWN_USER` "One or more users do not exist" for unknown ids |
+| `DELETE /conversations/{id}/participants/{userId}` (admin; own id = leave) | 200 + group object | 403 `FORBIDDEN` "Only admins can remove other members" for non-admins removing others |
+| `POST /conversations/{id}/admins` (admin only) | 200 + group object with updated `admins` | 403 `FORBIDDEN` "Only admins can promote members" |
+
+Removal/leave behavior (verified):
+- A removed user's socket stops receiving `message:new`; sending afterwards
+  fails the ack with `{ ok: false, error: "Not a participant of this conversation" }`.
+- The group disappears from the removed/leaving user's `GET /conversations`.
+- A newly added participant receives both `conversation:updated` (for their add)
+  and subsequent `message:new` events immediately (verified with a connected
+  socket that joined before being added).
+
+Idempotency quirks (verified):
+- Adding an **already-added** participant → 200 + group object (no error).
+- Promoting an **existing admin** → 200 + group object (no error).
+- Both still emit `conversation:updated`.
 
 ## Additional verified REST behavior (probe, 2026-08-21)
 
@@ -140,15 +175,16 @@ unexpected server-side disconnects observed during the probe.
   200-with-`null` occurred on a nonexistent conversation id.
 - Group validation: `participantIds` must yield ≥3 members total, else
   400 `VALIDATION_ERROR` ("a group needs at least 3 members").
+- Unknown conversation id (well-formed) → 404 `NOT_FOUND` "Conversation not found".
 - Malformed ObjectId in a path → **500 `SERVER_ERROR`** leaking a Mongo cast
   error string. Handle 5xx generically; don't parse the message.
 
 ## Unverified behavior (do not rely on without testing)
 
-- Response bodies for participant add/remove, promote-to-admin, leave-group.
-- `conversation:updated` for member/admin changes (only create + rename verified).
 - Whether `POST /conversations` is idempotent for an existing pair.
 - JWT expiry duration (observed `iat`/`exp` imply ~7 days, not confirmed).
 - `lastMessage` shape for groups; ordering guarantees of `GET /conversations`;
   the `before` cursor semantics (id vs timestamp).
 - Whether a 401 (expired/invalid but well-formed) token returns 401 or 400.
+- Whether a group can drop below 3 members via removals (observed: removal down
+  to 2 members succeeded; a 1-member floor, if any, was not tested).
