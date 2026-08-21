@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { ConversationList } from "@/components/chat/conversation-list";
 import { MessagePanel } from "@/components/chat/message-panel";
 import { NewConversationDialog } from "@/components/chat/new-conversation-dialog";
@@ -9,9 +9,19 @@ import { useConversations } from "@/features/conversations/queries";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/providers/auth-provider";
 
+const noopSubscribe = () => () => {};
+
 export default function ChatPage() {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const router = useRouter();
+  // The auth state depends on localStorage, which the server cannot see —
+  // render the same loading shell during SSR and hydration to avoid a
+  // server/client markup mismatch, then switch to the real client state.
+  const hydrated = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
   const { data, isPending, isError, error, refetch } = useConversations();
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [newConversationOpen, setNewConversationOpen] = useState(false);
@@ -20,7 +30,7 @@ export default function ChatPage() {
     if (!isLoading && !isAuthenticated) router.replace("/login");
   }, [isLoading, isAuthenticated, router]);
 
-  if (isLoading) {
+  if (!hydrated || isLoading) {
     return (
       <main className="flex flex-1 items-center justify-center">
         <p className="text-muted-foreground text-sm">Loading…</p>
