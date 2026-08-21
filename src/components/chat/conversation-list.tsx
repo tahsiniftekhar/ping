@@ -1,13 +1,12 @@
 "use client";
 
 import { ApiError } from "@/lib/api/client";
-import { useAuth } from "@/providers/auth-provider";
 import {
   conversationTimestamp,
   conversationTitle,
   lastMessagePreview,
 } from "@/features/conversations/helpers";
-import { useConversations } from "@/features/conversations/queries";
+import type { Conversation } from "@/types/api";
 import { Button } from "@/components/ui/button";
 
 function ConversationListSkeleton() {
@@ -23,10 +22,27 @@ function ConversationListSkeleton() {
   );
 }
 
-export function ConversationList() {
-  const { user } = useAuth();
-  const { data, isPending, isError, error, refetch } = useConversations();
+interface ConversationListProps {
+  conversations: Conversation[];
+  isPending: boolean;
+  isError: boolean;
+  error: Error | null;
+  onRetry: () => void;
+  selectedId: string | null;
+  onSelect: (conversationId: string) => void;
+  currentUserId: string;
+}
 
+export function ConversationList({
+  conversations,
+  isPending,
+  isError,
+  error,
+  onRetry,
+  selectedId,
+  onSelect,
+  currentUserId,
+}: ConversationListProps) {
   if (isPending) {
     return (
       <div className="flex flex-1 flex-col">
@@ -43,14 +59,12 @@ export function ConversationList() {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
         <p className="text-destructive text-sm">{message}</p>
-        <Button variant="outline" size="sm" onClick={() => refetch()}>
+        <Button variant="outline" size="sm" onClick={onRetry}>
           Retry
         </Button>
       </div>
     );
   }
-
-  const conversations = data.data;
 
   if (conversations.length === 0) {
     return (
@@ -63,19 +77,22 @@ export function ConversationList() {
     );
   }
 
-  if (!user) return null;
-
   return (
     <ul className="flex flex-1 flex-col overflow-y-auto p-2">
       {conversations.map((conversation) => {
         const title = conversationTitle(conversation);
-        const preview = lastMessagePreview(conversation.lastMessage, user._id);
+        const preview = lastMessagePreview(conversation.lastMessage, currentUserId);
         const timestamp = conversationTimestamp(conversation);
+        const selected = conversation._id === selectedId;
         return (
           <li key={conversation._id}>
             <button
               type="button"
-              className="hover:bg-muted flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => onSelect(conversation._id)}
+              aria-current={selected ? "true" : undefined}
+              className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                selected ? "bg-muted" : "hover:bg-muted/50"
+              }`}
             >
               <div className="bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
                 {conversation.type === "group" ? (

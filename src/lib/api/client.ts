@@ -11,7 +11,8 @@ import { env } from "@/lib/env";
 export class ApiError extends Error {
   constructor(
     public status: number,
-    public code: string | undefined,
+    // Usually a string ("NOT_FOUND"), but Mongo driver errors surface numeric codes.
+    public code: string | number | undefined,
     message: string,
     public details?: unknown,
   ) {

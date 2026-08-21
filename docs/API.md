@@ -62,7 +62,15 @@ Socket.io: `https://frontend-task-chatapp.onrender.com` (host root, `/socket.io/
 5. **IDs are MongoDB ObjectID strings** (24 hex chars). Timestamps are ISO-8601 UTC strings.
 6. **Render free tier behind Cloudflare**: cold starts can take tens of seconds;
    first request after idle may be slow. Design loading states accordingly.
-7. **Error status codes observed**: 400 `NO_TOKEN`, 400 `VALIDATION_ERROR` (with
+7. **User search by phone is effectively broken server-side** (verified
+   2026-08-21): phones are stored with a leading `+`, but any query containing
+   `+` (or other regex metacharacters) crashes the API's regex —
+   500 with `{"error":{"message":"Regular expression is invalid: …","code":51091}}`
+   (a numeric Mongo error code, not the usual envelope). Queries without `+`
+   return no matches (not even substring matches). Practical effect: only
+   name search works reliably; the frontend must not assume phone search
+   functions.
+8. **Error status codes observed**: 400 `NO_TOKEN`, 400 `VALIDATION_ERROR` (with
    `details: [{ path, message }]`), 404 `NOT_FOUND`, 500 `SERVER_ERROR` (malformed
    ObjectId; message leaks a Mongo cast error). Admin-permission errors and
    401-on-expired-token responses not yet observed.
