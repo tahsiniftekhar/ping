@@ -1,5 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchConversations, startDirectConversation } from "@/features/conversations/api";
+import {
+  createGroup,
+  fetchConversations,
+  startDirectConversation,
+} from "@/features/conversations/api";
 
 export const conversationKeys = {
   all: ["conversations"] as const,
@@ -27,6 +31,22 @@ export function useStartDirectConversation() {
     onSuccess: async (conversation) => {
       await queryClient.invalidateQueries({ queryKey: conversationKeys.all });
       return conversation._id;
+    },
+  });
+}
+
+/**
+ * Creates a group and invalidates the list (the sidebar row comes from the
+ * refetch). Resolves with the new conversation id for callers to select.
+ */
+export function useCreateGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, participantIds }: { name: string; participantIds: string[] }) =>
+      createGroup(name, participantIds),
+    onSuccess: async (group) => {
+      await queryClient.invalidateQueries({ queryKey: conversationKeys.all });
+      return group._id;
     },
   });
 }

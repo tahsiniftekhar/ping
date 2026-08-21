@@ -5,6 +5,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { ConversationList } from "@/components/chat/conversation-list";
 import { MessagePanel } from "@/components/chat/message-panel";
 import { NewConversationDialog } from "@/components/chat/new-conversation-dialog";
+import { NewGroupDialog } from "@/components/chat/new-group-dialog";
 import { useConversations } from "@/features/conversations/queries";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/providers/auth-provider";
@@ -25,6 +26,7 @@ export default function ChatPage() {
   const { data, isPending, isError, error, refetch } = useConversations();
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [newConversationOpen, setNewConversationOpen] = useState(false);
+  const [newGroupOpen, setNewGroupOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) router.replace("/login");
@@ -63,14 +65,22 @@ export default function ChatPage() {
             Sign out
           </Button>
         </header>
-        <div className="border-b p-2">
+        <div className="flex gap-2 border-b p-2">
           <Button
             variant="outline"
             size="sm"
-            className="w-full"
+            className="flex-1"
             onClick={() => setNewConversationOpen(true)}
           >
-            New conversation
+            New chat
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={() => setNewGroupOpen(true)}
+          >
+            New group
           </Button>
         </div>
         <ConversationList
@@ -98,6 +108,11 @@ export default function ChatPage() {
         open={newConversationOpen}
         onOpenChange={setNewConversationOpen}
         onConversationOpened={setSelectedConversationId}
+      />
+      <NewGroupDialog
+        open={newGroupOpen}
+        onOpenChange={setNewGroupOpen}
+        onGroupCreated={setSelectedConversationId}
       />
     </main>
   );
