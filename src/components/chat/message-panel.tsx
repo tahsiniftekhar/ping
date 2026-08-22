@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { conversationTitle } from "@/features/conversations/helpers";
 import { GroupDetailsDialog } from "@/components/chat/group-details-dialog";
 import { chronologicMessages, messageKeys, useMessageHistory } from "@/features/messages/queries";
@@ -90,10 +91,12 @@ export function MessagePanel({
   conversation,
   currentUserId,
   onConversationLeft,
+  onBack,
 }: {
   conversation: Conversation;
   currentUserId: string;
   onConversationLeft: () => void;
+  onBack?: () => void;
 }) {
   const {
     data,
@@ -226,8 +229,18 @@ export function MessagePanel({
   return (
     <section className="flex min-h-0 flex-1 flex-col bg-white">
       {/* Chat Header */}
-      <header className="flex min-h-14 items-center justify-between gap-3 border-b border-[#171717]/[0.08] px-5 py-3 bg-[#FAFAF8]">
-        <div className="flex items-center gap-3 min-w-0">
+      <header className="flex min-h-14 items-center justify-between gap-3 border-b border-[#171717]/[0.08] px-4 py-3 bg-[#FAFAF8] sm:px-5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Back to conversations"
+              className="flex size-8 shrink-0 items-center justify-center rounded-full text-[#171717] hover:bg-[#171717]/[0.06] transition-colors md:hidden -ml-1"
+            >
+              <ArrowLeft className="size-4" />
+            </button>
+          )}
           <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#EAEAE7] text-xs font-bold text-[#171717] border border-[#171717]/[0.06]">
             {conversation.type === "group" ? (
               <span aria-hidden>👥</span>

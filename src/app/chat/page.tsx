@@ -51,9 +51,12 @@ export default function ChatPage() {
     <div className="flex min-h-screen w-full flex-col bg-[#F5F5F3] p-0 md:p-6 selection:bg-[#2878F0] selection:text-white">
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col overflow-hidden bg-[#FAFAF8] md:h-[calc(100vh-3rem)] md:flex-row md:rounded-[24px] md:border md:border-[#171717]/[0.08] shadow-[0_8px_32px_rgba(23,23,23,0.03)]">
         
-        {/* Sidebar */}
-        <aside className="flex min-h-0 flex-col border-b border-[#171717]/[0.08] md:w-80 md:shrink-0 md:border-r md:border-b-0">
-          
+        {/* Sidebar: visible by default on mobile, hidden on mobile when conversation selected */}
+        <aside
+          className={`flex min-h-0 flex-col border-b border-[#171717]/[0.08] md:w-80 md:shrink-0 md:border-r md:border-b-0 ${
+            selectedConversation ? "hidden md:flex" : "flex flex-1 md:flex-initial"
+          }`}
+        >
           {/* Header */}
           <header className="flex items-center justify-between gap-3 border-b border-[#171717]/[0.08] px-5 py-4">
             <div className="min-w-0">
@@ -107,15 +110,18 @@ export default function ChatPage() {
           />
         </aside>
 
-        {/* Message Panel or Empty State */}
+        {/* Message Panel or Empty State: message panel visible on mobile when conversation selected, hidden on mobile when no conversation */}
         {selectedConversation ? (
-          <MessagePanel
-            conversation={selectedConversation}
-            currentUserId={user._id}
-            onConversationLeft={() => setSelectedConversationId(null)}
-          />
+          <div className="flex min-h-0 flex-1 flex-col">
+            <MessagePanel
+              conversation={selectedConversation}
+              currentUserId={user._id}
+              onConversationLeft={() => setSelectedConversationId(null)}
+              onBack={() => setSelectedConversationId(null)}
+            />
+          </div>
         ) : (
-          <section className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-8 text-center bg-[#F5F5F3]/30">
+          <section className="hidden md:flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-8 text-center bg-[#F5F5F3]/30">
             <div className="flex size-12 items-center justify-center rounded-2xl bg-[#EAEAE7] text-[#171717] text-lg mb-2 shadow-sm border border-[#171717]/[0.06]">
               💬
             </div>
