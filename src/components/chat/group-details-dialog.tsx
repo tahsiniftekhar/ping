@@ -21,18 +21,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 function errorText(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback;
 }
 
-/**
- * Group details: members, rename, add/remove participants (admins only).
- * Authorization is enforced by the API; the UI hides controls for non-admins
- * using `group.admins`. Membership changes are never optimistic — the REST
- * result plus list invalidation is the authority.
- */
 export function GroupDetailsDialog({
   group,
   currentUserId,
@@ -44,18 +37,15 @@ export function GroupDetailsDialog({
   currentUserId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called after the current user successfully left this group. */
   onLeft: () => void;
 }) {
   const isAdmin = group.admins.includes(currentUserId);
 
-  // rename
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [nameError, setNameError] = useState<string | null>(null);
   const renameMutation = useRenameGroup(group._id);
 
-  // add members
   const [addingOpen, setAddingOpen] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [selectedNewMembers, setSelectedNewMembers] = useState<User[]>([]);
@@ -64,12 +54,10 @@ export function GroupDetailsDialog({
   const search = useUserSearch(debouncedInput);
   const addMutation = useAddParticipants(group._id);
 
-  // remove member: id of the member pending a confirm click
   const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(null);
   const removeMutation = useRemoveParticipant(group._id);
   const promoteMutation = usePromoteToAdmin(group._id);
 
-  // leave group
   const [confirmingLeave, setConfirmingLeave] = useState(false);
   const leaveMutation = useLeaveGroup(group._id, currentUserId);
 
@@ -102,7 +90,7 @@ export function GroupDetailsDialog({
       await renameMutation.mutateAsync(name);
       setRenaming(false);
     } catch {
-      // error rendered below; stay in rename mode
+      // error handled in UI
     }
   }
 
@@ -122,7 +110,7 @@ export function GroupDetailsDialog({
       setSearchInput("");
       setAddingOpen(false);
     } catch {
-      // error rendered below; selections kept for retry
+      // error handled in UI
     }
   }
 
@@ -140,7 +128,7 @@ export function GroupDetailsDialog({
       handleOpenChange(false);
       onLeft();
     } catch {
-      // error rendered below; confirmation stays for retry
+      // error handled in UI
     }
   }
 
@@ -155,20 +143,20 @@ export function GroupDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-3 sm:max-w-md">
+      <DialogContent className="flex max-h-[85vh] flex-col gap-4 rounded-[24px] border border-[#171717]/[0.08] bg-[#FAFAF8] p-6 sm:max-w-md shadow-[0_16px_48px_rgba(23,23,23,0.08)]">
         <DialogHeader>
-          <DialogTitle className="truncate">{conversationTitle(group)}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="truncate text-lg font-bold tracking-tight text-[#171717]">{conversationTitle(group)}</DialogTitle>
+          <DialogDescription className="text-xs text-[#626262]">
             {group.participants.length} members · {group.admins.length}{" "}
             {group.admins.length === 1 ? "admin" : "admins"}
           </DialogDescription>
         </DialogHeader>
 
         {/* Group name / rename */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 border-b border-[#171717]/[0.06] pb-3">
           <div className="min-w-0">
             {renaming ? (
-              <Input
+              <input
                 type="text"
                 value={nameDraft}
                 onChange={(event) => setNameDraft(event.target.value)}
@@ -181,9 +169,10 @@ export function GroupDetailsDialog({
                     void handleRename();
                   }
                 }}
+                className="h-8 rounded-lg border border-[#171717]/10 bg-white px-2.5 text-xs text-[#171717] outline-none focus:border-[#2878F0]"
               />
             ) : (
-              <p className="truncate text-sm font-medium">{group.name}</p>
+              <p className="truncate text-sm font-bold text-[#171717]">{group.name}</p>
             )}
           </div>
           {isAdmin &&
@@ -192,6 +181,7 @@ export function GroupDetailsDialog({
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="h-7 rounded-full text-xs"
                   disabled={renameMutation.isPending}
                   onClick={() => {
                     setRenaming(false);
@@ -201,7 +191,12 @@ export function GroupDetailsDialog({
                 >
                   Cancel
                 </Button>
-                <Button size="sm" disabled={renameMutation.isPending} onClick={() => void handleRename()}>
+                <Button 
+                  size="sm" 
+                  className="h-7 rounded-full bg-[#171717] text-xs text-white" 
+                  disabled={renameMutation.isPending} 
+                  onClick={() => void handleRename()}
+                >
                   {renameMutation.isPending ? "Saving…" : "Save"}
                 </Button>
               </div>
@@ -209,7 +204,7 @@ export function GroupDetailsDialog({
               <Button
                 variant="outline"
                 size="sm"
-                className="shrink-0"
+                className="h-7 rounded-full text-xs border-[#171717]/10"
                 onClick={() => {
                   setNameDraft(group.name);
                   setRenaming(true);
@@ -221,32 +216,37 @@ export function GroupDetailsDialog({
         </div>
 
         {nameError && (
-          <p role="alert" className="text-destructive text-sm">
+          <p role="alert" className="text-red-600 text-xs">
             {nameError}
           </p>
         )}
         {renameMutation.isError && (
-          <p role="alert" className="text-destructive text-sm">
+          <p role="alert" className="text-red-600 text-xs">
             {errorText(renameMutation.error, "Could not rename the group. Please try again.")}
           </p>
         )}
 
         {/* Add members (admins only) */}
         {isAdmin && !addingOpen && (
-          <Button variant="outline" size="sm" onClick={() => setAddingOpen(true)}>
-            Add members
-          </Button>
+          <button 
+            type="button" 
+            className="rounded-full bg-[#171717]/[0.05] hover:bg-[#171717]/[0.09] py-1.5 text-xs font-semibold text-[#171717] transition-colors"
+            onClick={() => setAddingOpen(true)}
+          >
+            + Add members
+          </button>
         )}
         {isAdmin && addingOpen && (
-          <div className="flex flex-col gap-2 rounded-md border p-2">
-            <Input
+          <div className="flex flex-col gap-2 rounded-2xl border border-[#171717]/[0.08] bg-[#F5F5F3] p-3">
+            <input
               type="search"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search by name to add people"
+              placeholder="Search by name to add people..."
               autoComplete="off"
               aria-label="Search users to add"
               disabled={addBusy}
+              className="w-full h-8 rounded-lg border border-[#171717]/10 bg-white px-2.5 text-xs text-[#171717] outline-none focus:border-[#2878F0]"
             />
             {selectedNewMembers.length > 0 && (
               <ul className="flex flex-wrap gap-1.5" aria-label="Selected new members">
@@ -256,41 +256,38 @@ export function GroupDetailsDialog({
                       type="button"
                       onClick={() => toggleNewMember(user)}
                       disabled={addBusy}
-                      className="bg-muted hover:bg-muted/70 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex items-center gap-1 rounded-full bg-[#171717] px-2.5 py-0.5 text-[11px] font-medium text-white"
                       aria-label={`Remove ${user.name} from selection`}
                     >
-                      {user.name}
+                      <span>{user.name}</span>
                       <span aria-hidden>×</span>
                     </button>
                   </li>
                 ))}
               </ul>
             )}
-            <div className="flex max-h-40 min-h-20 flex-col gap-1 overflow-y-auto">
+            <div className="flex max-h-36 min-h-16 flex-col gap-1 overflow-y-auto">
               {showIdle && (
-                <p className="text-muted-foreground px-1 py-3 text-center text-xs">
+                <p className="text-[#8A8A86] px-1 py-2 text-center text-xs">
                   Search to add group members.
                 </p>
               )}
               {showSearching && (
-                <div className="flex flex-col gap-2 px-1 py-2" aria-label="Searching">
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <div key={index} className="bg-muted h-10 animate-pulse rounded-md" />
+                <div className="flex flex-col gap-1.5 px-1 py-2" aria-label="Searching">
+                  {Array.from({ length: 2 }).map((_, index) => (
+                    <div key={index} className="h-8 bg-[#EAEAE7] animate-pulse rounded-[10px]" />
                   ))}
                 </div>
               )}
               {showSearchError && (
                 <div className="flex flex-col items-center gap-1 px-1 py-2 text-center">
-                  <p className="text-destructive text-xs">
+                  <p className="text-red-600 text-xs">
                     {errorText(search.error, "Search failed. Please try again.")}
                   </p>
-                  <Button variant="outline" size="sm" onClick={() => search.refetch()}>
-                    Retry
-                  </Button>
                 </div>
               )}
               {showNoResults && (
-                <p className="text-muted-foreground px-1 py-3 text-center text-xs">
+                <p className="text-[#8A8A86] px-1 py-2 text-center text-xs">
                   No users found for “{trimmedSearch}”.
                 </p>
               )}
@@ -305,20 +302,15 @@ export function GroupDetailsDialog({
                           onClick={() => toggleNewMember(user)}
                           disabled={addBusy}
                           aria-pressed={selected}
-                          className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 ${
-                            selected ? "bg-muted" : "hover:bg-muted/50"
+                          className={`flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs transition-colors ${
+                            selected ? "bg-[#171717]/[0.08]" : "hover:bg-[#171717]/[0.04]"
                           }`}
                         >
-                          <span className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
+                          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#EAEAE7] text-[10px] font-bold text-[#171717]">
                             {user.name.charAt(0).toUpperCase()}
                           </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm">{user.name}</span>
-                            <span className="text-muted-foreground block truncate text-xs">
-                              {user.phone}
-                            </span>
-                          </span>
-                          {selected && <span className="text-xs">✓</span>}
+                          <span className="min-w-0 flex-1 truncate font-medium text-[#171717]">{user.name}</span>
+                          {selected && <span className="text-[10px] font-bold text-[#2878F0]">✓</span>}
                         </button>
                       </li>
                     );
@@ -327,16 +319,17 @@ export function GroupDetailsDialog({
               )}
             </div>
             {addMutation.isError && (
-              <p role="alert" className="text-destructive px-1 text-sm">
+              <p role="alert" className="text-red-600 px-1 text-xs">
                 {errorText(addMutation.error, "Could not add members. Please try again.")}
               </p>
             )}
-            <div className="flex justify-end gap-1">
-              <Button variant="ghost" size="sm" disabled={addBusy} onClick={() => setAddingOpen(false)}>
+            <div className="flex justify-end gap-1 mt-1">
+              <Button variant="ghost" size="sm" className="h-7 rounded-full text-xs" disabled={addBusy} onClick={() => setAddingOpen(false)}>
                 Cancel
               </Button>
               <Button
                 size="sm"
+                className="h-7 rounded-full bg-[#171717] text-xs text-white"
                 disabled={addBusy || selectedNewMembers.length === 0}
                 onClick={() => void handleAddMembers()}
               >
@@ -347,113 +340,126 @@ export function GroupDetailsDialog({
         )}
 
         {/* Members */}
-        <ul className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto" aria-label="Members">
-          {group.participants.map((participant) => {
-            const admin = group.admins.includes(participant._id);
-            const you = participant._id === currentUserId;
-            const removable = isAdmin && !you;
-            const confirming = confirmingRemoveId === participant._id;
-            return (
-              <li key={participant._id} className="flex items-center gap-3 rounded-md px-2 py-1.5">
-                <span className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
-                  {participant.name.charAt(0).toUpperCase()}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">
-                    {participant.name}
-                    {you && <span className="text-muted-foreground font-normal"> (you)</span>}
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#626262] mb-1">
+            Members ({group.participants.length})
+          </span>
+          <ul className="flex min-h-0 max-h-48 flex-col gap-1 overflow-y-auto" aria-label="Members">
+            {group.participants.map((participant) => {
+              const admin = group.admins.includes(participant._id);
+              const you = participant._id === currentUserId;
+              const removable = isAdmin && !you;
+              const confirming = confirmingRemoveId === participant._id;
+              return (
+                <li key={participant._id} className="flex items-center gap-3 rounded-xl px-2.5 py-1.5 hover:bg-[#171717]/[0.03]">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#EAEAE7] text-xs font-bold text-[#171717] border border-[#171717]/[0.06]">
+                    {participant.name.charAt(0).toUpperCase()}
                   </span>
-                  <span className="text-muted-foreground block truncate text-xs">
-                    {participant.phone}
-                  </span>
-                </span>
-                {admin ? (
-                  <span className="bg-muted shrink-0 rounded-full px-2 py-0.5 text-xs">Admin</span>
-                ) : (
-                  isAdmin &&
-                  !you && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground shrink-0"
-                      disabled={promoteMutation.isPending}
-                      onClick={() => void promoteMutation.mutateAsync(participant._id).catch(() => {})}
-                    >
-                      {promoteMutation.isPending && promoteMutation.variables === participant._id
-                        ? "Promoting…"
-                        : "Make admin"}
-                    </Button>
-                  )
-                )}
-                {removable &&
-                  (confirming ? (
-                    <span className="flex shrink-0 gap-1">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-bold text-[#171717]">
+                      {participant.name}
+                      {you && <span className="text-[#8A8A86] font-normal"> (you)</span>}
+                    </p>
+                    <p className="font-mono text-[10px] text-[#8A8A86] truncate">
+                      {participant.phone}
+                    </p>
+                  </div>
+                  {admin ? (
+                    <span className="rounded-full bg-[#171717]/[0.06] px-2 py-0.5 text-[10px] font-semibold text-[#171717]">Admin</span>
+                  ) : (
+                    isAdmin &&
+                    !you && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        disabled={removeBusy}
-                        onClick={() => setConfirmingRemoveId(null)}
+                        className="h-6 rounded-full text-[10px] text-[#626262] hover:text-[#171717]"
+                        disabled={promoteMutation.isPending}
+                        onClick={() => void promoteMutation.mutateAsync(participant._id).catch(() => {})}
                       >
-                        No
+                        {promoteMutation.isPending && promoteMutation.variables === participant._id
+                          ? "Promoting…"
+                          : "Make admin"}
                       </Button>
+                    )
+                  )}
+                  {removable &&
+                    (confirming ? (
+                      <span className="flex shrink-0 gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 rounded-full text-[10px]"
+                          disabled={removeBusy}
+                          onClick={() => setConfirmingRemoveId(null)}
+                        >
+                          No
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-6 rounded-full text-[10px]"
+                          disabled={removeBusy}
+                          onClick={() => void handleRemove(participant._id)}
+                        >
+                          {removeBusy ? "…" : "Remove"}
+                        </Button>
+                      </span>
+                    ) : (
                       <Button
-                        variant="destructive"
+                        variant="ghost"
                         size="sm"
-                        disabled={removeBusy}
-                        onClick={() => void handleRemove(participant._id)}
+                        className="h-6 rounded-full text-[10px] text-[#8A8A86] hover:text-red-600"
+                        onClick={() => setConfirmingRemoveId(participant._id)}
                       >
-                        {removeBusy ? "Removing…" : "Remove"}
+                        Remove
                       </Button>
-                    </span>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground shrink-0"
-                      onClick={() => setConfirmingRemoveId(participant._id)}
-                    >
-                      Remove
-                    </Button>
-                  ))}
-              </li>
-            );
-          })}
-        </ul>
+                    ))}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
 
         {removeMutation.isError && (
-          <p role="alert" className="text-destructive text-sm">
+          <p role="alert" className="text-red-600 text-xs">
             {errorText(removeMutation.error, "Could not remove the member. Please try again.")}
           </p>
         )}
         {promoteMutation.isError && (
-          <p role="alert" className="text-destructive text-sm">
+          <p role="alert" className="text-red-600 text-xs">
             {errorText(promoteMutation.error, "Could not promote the member. Please try again.")}
           </p>
         )}
 
-        {/* Leave group (all members) */}
-        {confirmingLeave ? (
-          <div className="flex flex-col gap-2 rounded-md border border-destructive/40 p-3">
-            <p className="text-sm font-medium">Leave group?</p>
-            <p className="text-muted-foreground text-xs">
-              You will no longer receive messages from this group.
-            </p>
-            <div className="flex justify-end gap-1">
-              <Button variant="ghost" size="sm" disabled={leaveMutation.isPending} onClick={() => setConfirmingLeave(false)}>
-                Cancel
-              </Button>
-              <Button variant="destructive" size="sm" disabled={leaveMutation.isPending} onClick={() => void handleLeave()}>
-                {leaveMutation.isPending ? "Leaving…" : "Leave group"}
-              </Button>
+        {/* Leave group */}
+        <div className="border-t border-[#171717]/[0.06] pt-3">
+          {confirmingLeave ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-3">
+              <p className="text-xs font-bold text-red-700">Leave group?</p>
+              <p className="text-[11px] text-red-600">
+                You will no longer receive messages from this group.
+              </p>
+              <div className="flex justify-end gap-1 mt-1">
+                <Button variant="ghost" size="sm" className="h-6 rounded-full text-[10px]" disabled={leaveMutation.isPending} onClick={() => setConfirmingLeave(false)}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" size="sm" className="h-6 rounded-full text-[10px]" disabled={leaveMutation.isPending} onClick={() => void handleLeave()}>
+                  {leaveMutation.isPending ? "Leaving…" : "Leave group"}
+                </Button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <Button variant="outline" size="sm" className="text-destructive" onClick={() => setConfirmingLeave(true)}>
-            Leave group
-          </Button>
-        )}
+          ) : (
+            <button 
+              type="button"
+              className="w-full text-center text-xs font-semibold text-red-600 hover:text-red-700 py-1 transition-colors"
+              onClick={() => setConfirmingLeave(true)}
+            >
+              Leave group
+            </button>
+          )}
+        </div>
         {leaveMutation.isError && (
-          <p role="alert" className="text-destructive text-sm">
+          <p role="alert" className="text-red-600 text-xs">
             {errorText(leaveMutation.error, "Could not leave the group. Please try again.")}
           </p>
         )}

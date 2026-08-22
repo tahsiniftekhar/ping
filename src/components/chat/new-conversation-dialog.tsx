@@ -13,12 +13,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 interface NewConversationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called with the id of the opened/created conversation. */
   onConversationOpened: (conversationId: string) => void;
 }
 
@@ -59,78 +57,81 @@ export function NewConversationDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="rounded-[24px] border border-[#171717]/[0.08] bg-[#FAFAF8] p-6 sm:max-w-md shadow-[0_16px_48px_rgba(23,23,23,0.08)]">
         <DialogHeader>
-          <DialogTitle>New conversation</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg font-bold tracking-tight text-[#171717]">New conversation</DialogTitle>
+          <DialogDescription className="text-xs text-[#626262]">
             Search for someone by name or phone number to start a direct chat.
           </DialogDescription>
         </DialogHeader>
 
-        <Input
-          type="search"
-          value={searchInput}
-          onChange={(event) => setSearchInput(event.target.value)}
-          placeholder="Search by name or phone"
-          autoComplete="off"
-          aria-label="Search users"
-        />
+        <div className="mt-2">
+          <input
+            type="search"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="Search by name or phone..."
+            autoComplete="off"
+            aria-label="Search users"
+            className="w-full h-10 rounded-xl border border-[#171717]/10 bg-white px-3.5 text-xs sm:text-sm text-[#171717] placeholder:text-[#8A8A86] outline-none transition-colors focus:border-[#2878F0] focus:ring-1 focus:ring-[#2878F0]"
+          />
+        </div>
 
-        <div className="flex min-h-48 flex-col gap-2">
+        <div className="flex min-h-48 flex-col gap-2 mt-2">
           {showIdle && (
-            <p className="text-muted-foreground px-1 py-8 text-center text-sm">
-              Start typing to search.
+            <p className="text-[#8A8A86] px-1 py-8 text-center text-xs">
+              Start typing to search users.
             </p>
           )}
 
           {showSearching && (
             <div className="flex flex-col gap-2 px-1 py-4" aria-label="Searching">
               {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="bg-muted h-12 animate-pulse rounded-md" />
+                <div key={index} className="h-11 bg-[#EAEAE7] animate-pulse rounded-[14px]" />
               ))}
             </div>
           )}
 
           {showError && (
             <div className="flex flex-col items-center gap-2 px-1 py-6 text-center">
-              <p className="text-destructive text-sm">
+              <p className="text-xs text-red-600">
                 {search.error instanceof ApiError
                   ? search.error.message
                   : "Search failed. Please try again."}
               </p>
-              <Button variant="outline" size="sm" onClick={() => search.refetch()}>
+              <Button variant="outline" size="sm" className="h-7 rounded-full text-xs" onClick={() => search.refetch()}>
                 Retry
               </Button>
             </div>
           )}
 
           {showNoResults && (
-            <p className="text-muted-foreground px-1 py-8 text-center text-sm">
+            <p className="text-[#8A8A86] px-1 py-8 text-center text-xs">
               No users found for “{trimmed}”.
             </p>
           )}
 
           {results.length > 0 && (
-            <ul className="flex flex-col gap-1 overflow-y-auto" aria-label="Search results">
+            <ul className="flex flex-col gap-1 overflow-y-auto max-h-60" aria-label="Search results">
               {results.map((user) => (
                 <li key={user._id}>
                   <button
                     type="button"
                     onClick={() => handleSelect(user._id)}
                     disabled={creating}
-                    className="hover:bg-muted flex w-full items-center gap-3 rounded-md px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                    className="flex w-full items-center gap-3 rounded-[14px] px-3 py-2 text-left transition-colors hover:bg-[#171717]/[0.05] outline-none focus-visible:ring-1 focus-visible:ring-[#2878F0] disabled:opacity-50"
                   >
-                    <span className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#EAEAE7] text-xs font-bold text-[#171717] border border-[#171717]/[0.06]">
                       {user.name.charAt(0).toUpperCase()}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">{user.name}</span>
-                      <span className="text-muted-foreground block truncate text-xs">
+                      <span className="block truncate text-xs font-bold text-[#171717]">{user.name}</span>
+                      <span className="block truncate font-mono text-[10px] text-[#8A8A86]">
                         {user.phone}
                       </span>
                     </span>
                     {selectedUserId === user._id && creating && (
-                      <span className="text-muted-foreground text-xs">Opening…</span>
+                      <span className="text-[10px] font-mono text-[#2878F0]">Opening…</span>
                     )}
                   </button>
                 </li>
@@ -139,7 +140,7 @@ export function NewConversationDialog({
           )}
 
           {startConversation.isError && (
-            <p role="alert" className="text-destructive px-1 text-sm">
+            <p role="alert" className="text-red-600 px-1 text-xs">
               {startConversation.error instanceof ApiError
                 ? startConversation.error.message
                 : "Could not open the conversation. Please try again."}

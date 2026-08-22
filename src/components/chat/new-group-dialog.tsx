@@ -14,12 +14,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 interface NewGroupDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called with the id of the newly created group. */
   onGroupCreated: (conversationId: string) => void;
 }
 
@@ -64,7 +62,6 @@ export function NewGroupDialog({
       setValidationError("Please give the group a name.");
       return;
     }
-    // The creator (you) is added automatically, so 2 selections make 3 members.
     if (selectedUsers.length < 2) {
       setValidationError("Select at least 2 other people to create a group.");
       return;
@@ -90,56 +87,60 @@ export function NewGroupDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-md">
+      <DialogContent className="flex max-h-[85vh] flex-col rounded-[24px] border border-[#171717]/[0.08] bg-[#FAFAF8] p-6 sm:max-w-md shadow-[0_16px_48px_rgba(23,23,23,0.08)]">
         <DialogHeader>
-          <DialogTitle>New group</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg font-bold tracking-tight text-[#171717]">New group</DialogTitle>
+          <DialogDescription className="text-xs text-[#626262]">
             Name your group and add at least 2 other people. You become the group admin.
           </DialogDescription>
         </DialogHeader>
 
-        <Input
-          type="text"
-          value={groupName}
-          onChange={(event) => setGroupName(event.target.value)}
-          placeholder="Group name"
-          autoComplete="off"
-          disabled={submitting}
-          aria-label="Group name"
-        />
+        <div className="flex flex-col gap-3 mt-1">
+          <input
+            type="text"
+            value={groupName}
+            onChange={(event) => setGroupName(event.target.value)}
+            placeholder="Group name"
+            autoComplete="off"
+            disabled={submitting}
+            aria-label="Group name"
+            className="w-full h-10 rounded-xl border border-[#171717]/10 bg-white px-3.5 text-xs sm:text-sm text-[#171717] placeholder:text-[#8A8A86] outline-none transition-colors focus:border-[#2878F0] focus:ring-1 focus:ring-[#2878F0] disabled:opacity-50"
+          />
 
-        {selectedUsers.length > 0 && (
-          <ul className="flex flex-wrap gap-1.5" aria-label="Selected members">
-            {selectedUsers.map((user) => (
-              <li key={user._id}>
-                <button
-                  type="button"
-                  onClick={() => toggleSelected(user)}
-                  disabled={submitting}
-                  className="bg-muted hover:bg-muted/70 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label={`Remove ${user.name}`}
-                >
-                  {user.name}
-                  <span aria-hidden>×</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+          {selectedUsers.length > 0 && (
+            <ul className="flex flex-wrap gap-1.5" aria-label="Selected members">
+              {selectedUsers.map((user) => (
+                <li key={user._id}>
+                  <button
+                    type="button"
+                    onClick={() => toggleSelected(user)}
+                    disabled={submitting}
+                    className="flex items-center gap-1.5 rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white transition-opacity hover:opacity-80 outline-none"
+                    aria-label={`Remove ${user.name}`}
+                  >
+                    <span>{user.name}</span>
+                    <span aria-hidden className="text-white/60">×</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
-        <Input
-          type="search"
-          value={searchInput}
-          onChange={(event) => setSearchInput(event.target.value)}
-          placeholder="Search by name to add people"
-          autoComplete="off"
-          disabled={submitting}
-          aria-label="Search users"
-        />
+          <input
+            type="search"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="Search by name to add people..."
+            autoComplete="off"
+            disabled={submitting}
+            aria-label="Search users"
+            className="w-full h-10 rounded-xl border border-[#171717]/10 bg-white px-3.5 text-xs sm:text-sm text-[#171717] placeholder:text-[#8A8A86] outline-none transition-colors focus:border-[#2878F0] focus:ring-1 focus:ring-[#2878F0] disabled:opacity-50"
+          />
+        </div>
 
-        <div className="flex min-h-36 flex-col gap-2 overflow-y-auto">
+        <div className="flex min-h-36 flex-col gap-2 overflow-y-auto mt-1">
           {showIdle && (
-            <p className="text-muted-foreground px-1 py-6 text-center text-sm">
+            <p className="text-[#8A8A86] px-1 py-6 text-center text-xs">
               Search to add group members.
             </p>
           )}
@@ -147,26 +148,26 @@ export function NewGroupDialog({
           {showSearching && (
             <div className="flex flex-col gap-2 px-1 py-3" aria-label="Searching">
               {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="bg-muted h-11 animate-pulse rounded-md" />
+                <div key={index} className="h-10 bg-[#EAEAE7] animate-pulse rounded-[14px]" />
               ))}
             </div>
           )}
 
           {showError && (
             <div className="flex flex-col items-center gap-2 px-1 py-4 text-center">
-              <p className="text-destructive text-sm">
+              <p className="text-xs text-red-600">
                 {search.error instanceof ApiError
                   ? search.error.message
                   : "Search failed. Please try again."}
               </p>
-              <Button variant="outline" size="sm" onClick={() => search.refetch()}>
+              <Button variant="outline" size="sm" className="h-7 rounded-full text-xs" onClick={() => search.refetch()}>
                 Retry
               </Button>
             </div>
           )}
 
           {showNoResults && (
-            <p className="text-muted-foreground px-1 py-6 text-center text-sm">
+            <p className="text-[#8A8A86] px-1 py-6 text-center text-xs">
               No users found for “{trimmed}”.
             </p>
           )}
@@ -182,20 +183,20 @@ export function NewGroupDialog({
                       onClick={() => toggleSelected(user)}
                       disabled={submitting}
                       aria-pressed={selected}
-                      className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 ${
-                        selected ? "bg-muted" : "hover:bg-muted/50"
+                      className={`flex w-full items-center gap-3 rounded-[14px] px-3 py-2 text-left transition-colors outline-none focus-visible:ring-1 focus-visible:ring-[#2878F0] disabled:opacity-50 ${
+                        selected ? "bg-[#171717]/[0.08]" : "hover:bg-[#171717]/[0.04]"
                       }`}
                     >
-                      <span className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#EAEAE7] text-xs font-bold text-[#171717] border border-[#171717]/[0.06]">
                         {user.name.charAt(0).toUpperCase()}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{user.name}</span>
-                        <span className="text-muted-foreground block truncate text-xs">
+                        <span className="block truncate text-xs font-bold text-[#171717]">{user.name}</span>
+                        <span className="block truncate font-mono text-[10px] text-[#8A8A86]">
                           {user.phone}
                         </span>
                       </span>
-                      {selected && <span className="text-xs">✓</span>}
+                      {selected && <span className="text-xs font-bold text-[#2878F0]">✓</span>}
                     </button>
                   </li>
                 );
@@ -205,21 +206,26 @@ export function NewGroupDialog({
         </div>
 
         {validationError && (
-          <p role="alert" className="text-destructive px-1 text-sm">
+          <p role="alert" className="text-red-600 px-1 text-xs">
             {validationError}
           </p>
         )}
         {createGroupMutation.isError && (
-          <p role="alert" className="text-destructive px-1 text-sm">
+          <p role="alert" className="text-red-600 px-1 text-xs">
             {createGroupMutation.error instanceof ApiError
               ? createGroupMutation.error.message
               : "Could not create the group. Please try again."}
           </p>
         )}
 
-        <Button type="button" onClick={() => void handleCreate()} disabled={submitting}>
+        <button
+          type="button"
+          onClick={() => void handleCreate()}
+          disabled={submitting}
+          className="mt-2 h-10 rounded-full bg-[#171717] text-xs font-semibold text-white shadow-none transition-all hover:bg-[#171717]/90 active:scale-[0.98] disabled:opacity-50"
+        >
           {submitting ? "Creating…" : "Create group"}
-        </Button>
+        </button>
       </DialogContent>
     </Dialog>
   );

@@ -11,11 +11,14 @@ import { Button } from "@/components/ui/button";
 
 function ConversationListSkeleton() {
   return (
-    <div className="flex flex-col gap-1 p-2" aria-hidden>
+    <div className="flex flex-col gap-1.5 p-3" aria-hidden>
       {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="flex flex-col gap-2 rounded-md p-3">
-          <div className="bg-muted h-4 w-1/2 animate-pulse rounded" />
-          <div className="bg-muted h-3 w-3/4 animate-pulse rounded" />
+        <div key={index} className="flex items-center gap-3 rounded-[14px] p-2.5">
+          <div className="size-10 rounded-full bg-[#EAEAE7] animate-pulse shrink-0" />
+          <div className="flex flex-1 flex-col gap-1.5">
+            <div className="bg-[#EAEAE7] h-3.5 w-1/2 animate-pulse rounded" />
+            <div className="bg-[#EAEAE7] h-2.5 w-3/4 animate-pulse rounded" />
+          </div>
         </div>
       ))}
     </div>
@@ -58,8 +61,13 @@ export function ConversationList({
         : "Could not load conversations. Please try again.";
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-destructive text-sm">{message}</p>
-        <Button variant="outline" size="sm" onClick={onRetry}>
+        <p className="text-xs text-red-600">{message}</p>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={onRetry}
+          className="h-8 rounded-full border-[#171717]/10 text-xs"
+        >
           Retry
         </Button>
       </div>
@@ -68,9 +76,9 @@ export function ConversationList({
 
   if (conversations.length === 0) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-1 p-6 text-center">
-        <p className="text-sm font-medium">No conversations yet</p>
-        <p className="text-muted-foreground text-xs">
+      <div className="flex flex-1 flex-col items-center justify-center gap-1.5 p-6 text-center">
+        <p className="text-xs font-bold text-[#171717]">No conversations yet</p>
+        <p className="text-[11px] text-[#8A8A86]">
           Search for someone to start your first chat.
         </p>
       </div>
@@ -78,7 +86,7 @@ export function ConversationList({
   }
 
   return (
-    <ul className="flex flex-1 flex-col overflow-y-auto p-2">
+    <ul className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
       {conversations.map((conversation) => {
         const title = conversationTitle(conversation);
         const preview = lastMessagePreview(conversation.lastMessage, currentUserId);
@@ -90,11 +98,11 @@ export function ConversationList({
               type="button"
               onClick={() => onSelect(conversation._id)}
               aria-current={selected ? "true" : undefined}
-              className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                selected ? "bg-muted" : "hover:bg-muted/50"
+              className={`flex w-full items-center gap-3 rounded-[14px] px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-1 focus-visible:ring-[#2878F0] ${
+                selected ? "bg-[#171717]/[0.08]" : "hover:bg-[#171717]/[0.04]"
               }`}
             >
-              <div className="bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#EAEAE7] text-xs font-bold text-[#171717] border border-[#171717]/[0.06]">
                 {conversation.type === "group" ? (
                   <span aria-hidden>👥</span>
                 ) : (
@@ -103,12 +111,12 @@ export function ConversationList({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="truncate text-sm font-medium">{title}</span>
+                  <span className="truncate text-xs font-bold text-[#171717]">{title}</span>
                   {timestamp && (
-                    <span className="text-muted-foreground shrink-0 text-xs">{timestamp}</span>
+                    <span className="font-mono text-[10px] text-[#8A8A86] shrink-0">{timestamp}</span>
                   )}
                 </div>
-                <span className="text-muted-foreground block truncate text-xs">{preview}</span>
+                <span className="block truncate text-xs text-[#626262] mt-0.5">{preview}</span>
               </div>
             </button>
           </li>

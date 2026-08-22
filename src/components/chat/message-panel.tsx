@@ -11,12 +11,9 @@ import { ApiError } from "@/lib/api/client";
 import type { Conversation, Message } from "@/types/api";
 import { Button } from "@/components/ui/button";
 
-/** Distance from the top (px) that triggers loading older messages. */
 const LOAD_OLDER_THRESHOLD = 60;
-/** Distance from the bottom (px) within which new messages auto-scroll. */
 const NEAR_BOTTOM_THRESHOLD = 80;
 
-/** Local pending/sent/failed message rendered alongside server history. */
 interface DisplayMessage {
   key: string;
   text: string;
@@ -50,19 +47,21 @@ function MessageBubble({
   return (
     <div className={`flex flex-col ${outgoing ? "items-end" : "items-start"}`}>
       {showSender && senderName && !outgoing && (
-        <span className="text-muted-foreground mb-0.5 ml-1 text-xs">{senderName}</span>
+        <span className="text-[11px] font-semibold text-[#8A8A86] mb-1 ml-1">{senderName}</span>
       )}
       <div
-        className={`max-w-[85%] rounded-2xl px-3 py-2 transition-opacity sm:max-w-md ${
-          outgoing ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted rounded-bl-sm"
+        className={`max-w-[85%] px-4 py-2.5 transition-opacity sm:max-w-md ${
+          outgoing
+            ? "bg-[#171717] text-white rounded-[18px] rounded-tr-xs shadow-[0_4px_16px_rgba(23,23,23,0.06)]"
+            : "bg-[#FAFAF8] text-[#171717] border border-[#171717]/[0.08] rounded-[18px] rounded-tl-xs shadow-[0_2px_8px_rgba(23,23,23,0.02)]"
         } ${status === "pending" ? "opacity-70" : ""} ${
-          status === "failed" ? "border-2 border-destructive" : ""
+          status === "failed" ? "border-2 border-red-500" : ""
         }`}
       >
-        <p className="text-sm whitespace-pre-wrap break-words">{text}</p>
+        <p className="text-xs sm:text-sm font-medium whitespace-pre-wrap break-words leading-relaxed">{text}</p>
         <span
-          className={`mt-0.5 block text-right text-[10px] ${
-            outgoing ? "text-primary-foreground/70" : "text-muted-foreground"
+          className={`mt-1 block font-mono text-right text-[9px] ${
+            outgoing ? "text-white/50" : "text-[#8A8A86]"
           }`}
         >
           {status === "pending" ? "Sending…" : status === "failed" ? "Failed" : messageTimeLabel(createdAt)}
@@ -70,14 +69,14 @@ function MessageBubble({
       </div>
       {status === "failed" && (
         <span className="mt-1 flex items-center gap-2 text-xs">
-          <span className="text-destructive">{error ?? "Not delivered"}</span>
+          <span className="text-red-600">{error ?? "Not delivered"}</span>
           {onRetry && (
-            <Button variant="outline" size="sm" onClick={onRetry}>
+            <Button variant="outline" size="sm" className="h-6 rounded-full text-[10px]" onClick={onRetry}>
               Retry
             </Button>
           )}
           {onDismiss && (
-            <Button variant="ghost" size="sm" onClick={onDismiss}>
+            <Button variant="ghost" size="sm" className="h-6 rounded-full text-[10px]" onClick={onDismiss}>
               Dismiss
             </Button>
           )}
@@ -94,7 +93,6 @@ export function MessagePanel({
 }: {
   conversation: Conversation;
   currentUserId: string;
-  /** Invoked when the user leaves this conversation (group). */
   onConversationLeft: () => void;
 }) {
   const {
@@ -117,10 +115,8 @@ export function MessagePanel({
   const [draft, setDraft] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  // scrollHeight captured before older messages are prepended, to anchor restore.
   const previousScrollHeight = useRef<number | null>(null);
   const nearBottom = useRef(true);
-  // set when the user just submitted a message (forces scroll to bottom)
   const ownSubmission = useRef(false);
   const pageCount = data?.pages.length ?? 0;
 
@@ -129,8 +125,6 @@ export function MessagePanel({
     [data],
   );
 
-  // Local entries stay until the server copy lands in history; then the server
-  // row wins (matched by sender+text within a window — the ack carries no id).
   const visibleLocal = useMemo(
     () =>
       pendingMessages.filter(
@@ -162,7 +156,6 @@ export function MessagePanel({
       outgoing: item.sender === currentUserId,
       local: item,
     }));
-    // Both lists are chronological locally; merge by creation time.
     return [...fromServer, ...fromLocal].sort((a, b) => {
       const aTime = typeof a.createdAt === "number" ? a.createdAt : new Date(a.createdAt).getTime();
       const bTime = typeof b.createdAt === "number" ? b.createdAt : new Date(b.createdAt).getTime();
@@ -170,13 +163,11 @@ export function MessagePanel({
     });
   }, [serverMessages, visibleLocal, currentUserId]);
 
-  // Initial load and conversation switches land at the bottom (latest messages).
   useEffect(() => {
     const container = scrollRef.current;
     if (!isPending && container) container.scrollTop = container.scrollHeight;
   }, [isPending, conversation._id]);
 
-  // After prepending an older page, restore the user's visual position.
   useEffect(() => {
     const container = scrollRef.current;
     if (container && previousScrollHeight.current !== null) {
@@ -185,8 +176,6 @@ export function MessagePanel({
     }
   }, [pageCount]);
 
-  // New messages: follow to bottom only if the user is near the bottom, or if
-  // the user just submitted a message. Reading older messages is never disturbed.
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
@@ -219,7 +208,6 @@ export function MessagePanel({
     setDraft("");
     ownSubmission.current = true;
     await send(text);
-    // Ask the server for the authoritative copy (sender gets no message:new).
     void queryClient.invalidateQueries({ queryKey: messageKeys.history(conversation._id) });
   }
 
@@ -236,41 +224,47 @@ export function MessagePanel({
   }
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col">
-      <header className="flex min-h-14 items-center gap-3 border-b px-4 py-2">
-        <div className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
-          {conversation.type === "group" ? (
-            <span aria-hidden>👥</span>
-          ) : (
-            conversationTitle(conversation).charAt(0).toUpperCase()
+    <section className="flex min-h-0 flex-1 flex-col bg-white">
+      {/* Chat Header */}
+      <header className="flex min-h-14 items-center justify-between gap-3 border-b border-[#171717]/[0.08] px-5 py-3 bg-[#FAFAF8]">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#EAEAE7] text-xs font-bold text-[#171717] border border-[#171717]/[0.06]">
+            {conversation.type === "group" ? (
+              <span aria-hidden>👥</span>
+            ) : (
+              conversationTitle(conversation).charAt(0).toUpperCase()
+            )}
+          </div>
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-bold tracking-tight text-[#171717]">{conversationTitle(conversation)}</h2>
+            <p className="font-mono text-[10px] text-[#8A8A86] truncate">{subtitle}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {conversation.type === "group" && (
+            <button
+              type="button"
+              className="rounded-full border border-[#171717]/10 bg-white px-3.5 py-1 text-xs font-semibold text-[#171717] transition-colors hover:bg-[#171717]/[0.05]"
+              onClick={() => setDetailsOpen(true)}
+            >
+              Details
+            </button>
+          )}
+          {!connected && (
+            <span className="font-mono text-[10px] text-red-600 shrink-0">Reconnecting…</span>
           )}
         </div>
-        <div className="min-w-0">
-          <h2 className="truncate text-sm font-semibold">{conversationTitle(conversation)}</h2>
-          <p className="text-muted-foreground truncate text-xs">{subtitle}</p>
-        </div>
-        {conversation.type === "group" && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto shrink-0"
-            onClick={() => setDetailsOpen(true)}
-          >
-            Details
-          </Button>
-        )}
-        {!connected && (
-          <span className="text-destructive shrink-0 text-xs">Reconnecting…</span>
-        )}
       </header>
 
-      <div className="relative min-h-0 flex-1">
+      {/* Message Stream */}
+      <div className="relative min-h-0 flex-1 bg-[#F5F5F3]/35">
         {isPending ? (
-          <div className="flex h-full flex-col justify-end gap-2 p-4" aria-label="Loading messages">
+          <div className="flex h-full flex-col justify-end gap-3 p-5" aria-label="Loading messages">
             {Array.from({ length: 5 }).map((_, index) => (
               <div
                 key={index}
-                className={`bg-muted h-10 w-1/3 animate-pulse rounded-2xl ${
+                className={`h-10 w-1/3 animate-pulse rounded-[18px] bg-[#EAEAE7] ${
                   index % 2 === 0 ? "self-start" : "self-end"
                 }`}
               />
@@ -278,29 +272,29 @@ export function MessagePanel({
           </div>
         ) : isError ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-            <p className="text-destructive text-sm">
+            <p className="text-xs text-red-600">
               {error instanceof ApiError
                 ? error.message
                 : "Could not load messages. Please try again."}
             </p>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <Button variant="outline" size="sm" className="h-8 rounded-full text-xs" onClick={() => refetch()}>
               Retry
             </Button>
           </div>
         ) : displayMessages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
-            <p className="text-sm font-medium">No messages yet</p>
-            <p className="text-muted-foreground text-xs">Say hello to start this conversation.</p>
+          <div className="flex h-full flex-col items-center justify-center gap-1.5 p-6 text-center">
+            <p className="text-xs font-bold text-[#171717]">No messages yet</p>
+            <p className="text-[11px] text-[#8A8A86]">Say hello to start this conversation.</p>
           </div>
         ) : (
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="flex h-full flex-col gap-2 overflow-y-auto p-4"
+            className="flex h-full flex-col gap-3 overflow-y-auto p-5"
             aria-label="Message history"
           >
             {isFetchingNextPage && (
-              <p className="text-muted-foreground animate-pulse py-1 text-center text-xs">
+              <p className="font-mono text-[10px] text-[#8A8A86] animate-pulse py-1 text-center">
                 Loading older messages…
               </p>
             )}
@@ -328,7 +322,8 @@ export function MessagePanel({
         )}
       </div>
 
-      <footer className="border-t p-3">
+      {/* Input Area */}
+      <footer className="border-t border-[#171717]/[0.08] p-3.5 bg-[#FAFAF8]">
         <div className="flex items-end gap-2">
           <textarea
             value={draft}
@@ -343,17 +338,19 @@ export function MessagePanel({
             placeholder={connected ? "Write a message…" : "Reconnecting…"}
             disabled={!connected}
             aria-label="Message input"
-            className="border-input bg-background flex-1 resize-none rounded-md border px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            className="flex-1 resize-none rounded-2xl border border-[#171717]/10 bg-white px-4 py-2.5 text-xs sm:text-sm text-[#171717] placeholder:text-[#8A8A86] outline-none transition-colors focus:border-[#2878F0] focus:ring-1 focus:ring-[#2878F0] disabled:opacity-50"
           />
-          <Button
+          <button
             type="button"
             onClick={() => void handleSubmit()}
             disabled={!connected || hasPending || draft.trim().length === 0}
+            className="rounded-full bg-[#171717] hover:bg-[#171717]/90 text-white px-5 py-2.5 text-xs font-semibold transition-all active:scale-[0.98] disabled:opacity-40"
           >
             {hasPending ? "Sending…" : "Send"}
-          </Button>
+          </button>
         </div>
       </footer>
+
       {conversation.type === "group" && (
         <GroupDetailsDialog
           group={conversation}
