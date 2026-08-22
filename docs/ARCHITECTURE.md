@@ -41,9 +41,10 @@ proxy or changes base URL, only `lib/env.ts` + `lib/api` change.
 
 - Queries: conversations list, message history (per conversation, keyed by id +
   cursor), user search (debounced from input).
-- Mutations: login, start conversation, create group, send message, add/remove
-  participants, promote admin, rename group — each invalidates or surgically
-  updates the relevant cache entries.
+- Mutations: login, start conversation, create group, add/remove participants,
+  promote admin, rename group — each invalidates or surgically updates the
+  relevant cache entries. Sending a message is not a REST mutation; it goes
+  over the socket (see DECISIONS #6).
 - Socket events update the same caches (see below), so REST and realtime
   converge on one source of truth. No duplicated state.
 
@@ -63,10 +64,10 @@ logout. Incoming events map to cache operations:
 - `message:new` → append to that conversation's first history page; update the
   conversation list's `lastMessage`/`updatedAt` (or `invalidateQueries` as fallback).
 - `conversation:updated` → invalidate the conversations list (group details changed).
-- Outgoing messages are sent over the socket (`message:send`), with REST
-  `POST /messages` as fallback; its response body cannot be trusted (can be
-  `null` with 200). Delivery confirmation comes from the realtime channel, not
-  the REST reply.
+- Outgoing messages are sent over the socket (`message:send`) with a socket
+  acknowledgement; there is no REST `POST /messages` fallback. The REST reply
+  is ignored for sending (its body can be `null` with 200). Delivery
+  confirmation comes from the realtime channel.
 
 ## Authentication flow
 
@@ -80,10 +81,11 @@ logout. Incoming events map to cache operations:
 
 - Open conversation → query first page (latest `limit` messages, rendered
   oldest→newest).
-- Send → `message:send` over the socket (REST fallback). Whether sends are
-  optimistic (append immediately, reconcile/rollback on ack/error) or pessimistic
-  (pending state until confirmed) is deliberately undecided until `message:new`
-  payloads and ack behavior are verified — see DECISIONS #6.
+- Send → `message:send` over the socket with a socket acknowledgement (no REST
+  fallback). Sends use a pessimistic pending state: append locally, mark
+  delivered on `{ ok: true }`, surface error/retry on failure ack or timeout —
+  because the ack carries no message id, full optimistic reconciliation is not
+  safe (see DECISIONS #6).
 - Receive → `message:new` appended if the conversation is open; otherwise update
   the sidebar preview/unread indicator.
 

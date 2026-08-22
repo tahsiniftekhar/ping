@@ -70,10 +70,10 @@ sanitized rendering of message text (React escapes by default), token kept out
 of logs. In a production setting we'd push for httpOnly cookies via a backend
 proxy. Flagged as a known limitation for the write-up.
 
-## 6. Socket.io `message:send` as the primary messaging mechanism — 2026-08-22 (updated after live probe)
+## 6. Socket.io `message:send` as the messaging mechanism — 2026-08-22 (updated after live probe)
 
-**Decision:** Socket.io `message:send` is the primary send path, with REST
-`POST /messages` as fallback. The live probe (2026-08-21, see docs/API.md)
+**Decision:** Socket.io `message:send` is the send path. There is no REST
+`POST /messages` fallback. The live probe (2026-08-21, see docs/API.md)
 confirmed the ack is `{ ok: true }` on success and `{ ok: false, error }` on
 failure — **it contains no message id**, and the sender never receives
 `message:new` for their own messages.
@@ -91,5 +91,5 @@ reconciliation only if a correlation mechanism surfaces later.
 
 **Trade-off:** Slightly less instant "sent" feedback than a full optimistic
 flow, and pending entries are lost on remount until refetched. In exchange, no
-risk of duplicate or phantom messages, and the two channels (socket + REST
-fallback) stay consistent via server confirmation.
+risk of duplicate or phantom messages, and a single, consistent send path that
+does not depend on the REST reply (whose body can be `null` with 200).
