@@ -23,6 +23,7 @@ describe("messages", () => {
         sender: a._id,
         text: `m${i}`,
         createdAt: expect.any(String),
+        seq: i,
       });
     }
 

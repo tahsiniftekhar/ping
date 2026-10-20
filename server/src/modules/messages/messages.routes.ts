@@ -15,6 +15,6 @@ messagesRouter.get("/conversations/:id/messages", requireAuth, async (req, res) 
 });
 
 messagesRouter.post("/messages", requireAuth, async (req, res) => {
-  const { conversationId, text } = parse(sendMessageBody, req.body ?? {});
-  res.json(await sendMessage(req.userId, conversationId, text));
+  const { conversationId, text, clientMessageId } = parse(sendMessageBody, req.body ?? {});
+  res.json(await sendMessage(req.userId, conversationId, text, clientMessageId));
 });

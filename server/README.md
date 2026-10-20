@@ -41,6 +41,7 @@ Invalid configuration aborts startup with a list of the offending variables.
 | `npm start` | run the compiled server |
 | `npm run typecheck` | `tsc --noEmit` over source and tests |
 | `npm test` | vitest integration tests (in-memory MongoDB; the first run downloads a mongod binary) |
+| `npm run migrate:seq` | number legacy messages and sync indexes (idempotent; `migrate:seq:dev` loads `.env`) |
 
 ## Layout
 

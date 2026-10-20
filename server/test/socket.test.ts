@@ -52,7 +52,7 @@ describe("socket", () => {
     sa.on("message:new", () => (senderGotEcho = true));
     const incoming = nextEvent<Record<string, unknown>>(sb, "message:new");
 
-    expect(await send(sa, { conversationId, text: " hello " })).toEqual({ ok: true });
+    expect(await send(sa, { conversationId, text: " hello " })).toMatchObject({ ok: true, message: { text: "hello", seq: 1 } });
 
     const message = await incoming;
     expect(message).toEqual({
@@ -61,6 +61,7 @@ describe("socket", () => {
       sender: a._id,
       text: "hello",
       createdAt: expect.any(Number),
+      seq: 1,
     });
     await sleep(150);
     expect(senderGotEcho).toBe(false);
@@ -119,7 +120,7 @@ describe("socket", () => {
     expect((await send(sc, { conversationId: group._id, text: "still here?" })).ok).toBe(false);
 
     const gotMessage = nextEvent(sb, "message:new");
-    expect(await send(sa, { conversationId: group._id, text: "hi team" })).toEqual({ ok: true });
+    expect((await send(sa, { conversationId: group._id, text: "hi team" })).ok).toBe(true);
     await gotMessage;
   });
 

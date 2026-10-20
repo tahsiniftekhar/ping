@@ -12,6 +12,8 @@
     "start": "node dist/index.js",
     "reset-demo": "node dist/scripts/reset-demo.js",
     "reset-demo:dev": "tsx --env-file=.env src/scripts/reset-demo.ts",
+    "migrate:seq": "node dist/scripts/backfill-seq.js",
+    "migrate:seq:dev": "tsx --env-file=.env src/scripts/backfill-seq.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
