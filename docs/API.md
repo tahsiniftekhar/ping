@@ -6,6 +6,12 @@ Socket.io: `https://frontend-task-chatapp.onrender.com` (host root, `/socket.io/
 "**Verified**" = observed against the live API with real requests (recon, 2026-08-21).
 "**Unverified**" = stated in the Swagger description or inferred, but not observed.
 
+> The self-hosted backend in `server/` implements this contract with the server-side
+> bugs fixed: phone search works (including a leading `+`), malformed ids return 400
+> `VALIDATION_ERROR` instead of 500, unknown conversations return 404 instead of
+> `200 null`, auth errors use 401 (`NO_TOKEN` / `INVALID_TOKEN`), and
+> `conversation:updated` fires only after successful mutations.
+
 ## Authentication
 
 - **Verified.** `POST /auth/login` returns `{ token, user }`; token is a JWT

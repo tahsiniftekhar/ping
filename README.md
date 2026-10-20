@@ -1,7 +1,9 @@
 # Ping — Real-Time Chat App
 
-Ping is a realtime messaging app for direct and group conversations, built with
-Next.js, TypeScript, TanStack Query and Socket.io on top of an external chat API.
+Ping is a realtime messaging app for direct and group conversations: a Next.js
+frontend (deployed on Vercel) and its own Express + Socket.io + MongoDB backend
+(`server/`, deployed with Docker on a VPS). The frontend also runs unchanged against
+the original hosted chat API.
 
 ## Features
 
@@ -84,6 +86,22 @@ the same caches.
 See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full structure and
 data-flow, and [`docs/DECISIONS.md`](./docs/DECISIONS.md) for the key
 architectural trade-offs.
+
+## Backend
+
+`server/` is a standalone Node.js service implementing the same REST + Socket.io
+contract. See [`server/README.md`](./server/README.md) for local development and
+[`deploy/README.md`](./deploy/README.md) for production deployment (Docker Compose
+with MongoDB and Caddy for automatic HTTPS).
+
+Run everything locally:
+
+```bash
+docker compose -f deploy/docker-compose.dev.yml up -d   # MongoDB
+cd server && cp .env.example .env && npm install && npm run dev
+```
+
+Then point `.env.local` at `http://localhost:4000/api` and `http://localhost:4000`.
 
 ## API Documentation
 

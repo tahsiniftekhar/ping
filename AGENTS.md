@@ -66,12 +66,27 @@ and a thought-process write-up.
 - Server → client: `message:new`, `conversation:updated`.
 - The socket is created once per authenticated session and torn down on logout.
 
+## Backend (`server/`)
+
+- Standalone Express 5 + Socket.io + MongoDB (Mongoose) service with its own
+  `package.json`, deployed separately (Docker on a VPS, see `deploy/README.md`).
+  It is excluded from the Next.js build, lint and Vercel upload.
+- It implements the contract in `docs/API.md` exactly, so the frontend works against
+  it or the original hosted API by switching only `NEXT_PUBLIC_*` env vars.
+- Structure: `src/modules/<feature>/` (routes, service, schemas, model),
+  `src/realtime/` (socket server + emitter), `src/middleware`, `src/lib`, `src/config`.
+  Services emit realtime events through `realtime/emitter.ts`, never via socket setup.
+- Validate every input with zod; errors use the `{ error: { message, code, details? } }`
+  envelope. Add an integration test in `server/test/` for any contract change.
+- `npm run typecheck`, `npm run build` and `npm test` in `server/` must pass.
+
 ## What NOT to build
 
 - No registration flow (login auto-registers), no password/OAuth screens.
 - No message editing/deletion, read receipts, typing indicators, push
   notifications, file upload — not in the assignment scope.
-- No mock backend, no database, no Next.js server-side data fetching of chat data.
+- No mock data or fake backends inside the frontend, and no Next.js server-side data
+  fetching of chat data. The real backend lives in `server/` (see below).
 - No scope creep before Parts 1–2 are complete.
 
 ## Testing expectations
