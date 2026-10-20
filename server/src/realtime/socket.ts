@@ -5,15 +5,28 @@ import { getEnv } from "../config/env.js";
 import { AppError } from "../lib/errors.js";
 import { verifyToken } from "../lib/jwt.js";
 import { logger } from "../lib/logger.js";
-import { sendMessageBody } from "../modules/messages/messages.schemas.js";
-import { sendMessage } from "../modules/messages/messages.service.js";
+import { sendMessageBody, syncBody } from "../modules/messages/messages.schemas.js";
+import { sendMessage, syncMessages } from "../modules/messages/messages.service.js";
 import { User } from "../modules/users/user.model.js";
 import { setIo, userRoom } from "./emitter.js";
 
-type Ack = (response: { ok: true } | { ok: false; error: string }) => void;
+type SyncAck = Ack<{ results: Awaited<ReturnType<typeof syncMessages>> }>;
+type SendAck = Ack<{ message: Awaited<ReturnType<typeof sendMessage>> }>;
+type Failure = { ok: false; error: string };
+type Ack<T = object> = (response: ({ ok: true } & T) | Failure) => void;
 
 const RATE_LIMIT_MAX = 20;
 const RATE_LIMIT_WINDOW_MS = 10_000;
+const SYNC_RATE_LIMIT_MAX = 10;
+
+/** Sliding-window counter; returns true when the call is allowed. */
+function allow(hits: number[], max: number) {
+  const now = Date.now();
+  while (hits.length > 0 && now - hits[0]! > RATE_LIMIT_WINDOW_MS) hits.shift();
+  if (hits.length >= max) return false;
+  hits.push(now);
+  return true;
+}
 
 function validationMessage(error: z.ZodError) {
   const issue = error.issues[0];
@@ -45,25 +58,40 @@ export function createSocketServer(httpServer: HttpServer) {
     const userId = socket.data.userId as string;
     void socket.join(userRoom(userId));
 
-    const sentAt: number[] = [];
+    socket.emit("server:hello", { protocol: 2, features: ["idempotent-send", "message-seq", "sync"] });
 
-    socket.on("message:send", async (payload: unknown, ack?: Ack) => {
+    const sentAt: number[] = [];
+    const syncedAt: number[] = [];
+
+    socket.on("message:send", async (payload: unknown, ack?: SendAck) => {
       const reply = typeof ack === "function" ? ack : () => {};
       try {
-        const now = Date.now();
-        while (sentAt.length > 0 && now - sentAt[0]! > RATE_LIMIT_WINDOW_MS) sentAt.shift();
-        if (sentAt.length >= RATE_LIMIT_MAX) return reply({ ok: false, error: "Slow down" });
-        sentAt.push(now);
+        if (!allow(sentAt, RATE_LIMIT_MAX)) return reply({ ok: false, error: "Slow down" });
 
         const parsed = sendMessageBody.safeParse(payload);
         if (!parsed.success) return reply({ ok: false, error: validationMessage(parsed.error) });
 
-        await sendMessage(userId, parsed.data.conversationId, parsed.data.text);
-        reply({ ok: true });
+        const { conversationId, text, clientMessageId } = parsed.data;
+        reply({ ok: true, message: await sendMessage(userId, conversationId, text, clientMessageId) });
       } catch (error) {
         if (error instanceof AppError) return reply({ ok: false, error: error.message });
         logger.error({ err: error, userId }, "message:send failed");
         reply({ ok: false, error: "Failed to send message" });
+      }
+    });
+
+    socket.on("messages:sync", async (payload: unknown, ack?: SyncAck) => {
+      const reply = typeof ack === "function" ? ack : () => {};
+      try {
+        if (!allow(syncedAt, SYNC_RATE_LIMIT_MAX)) return reply({ ok: false, error: "Slow down" });
+
+        const parsed = syncBody.safeParse(payload);
+        if (!parsed.success) return reply({ ok: false, error: validationMessage(parsed.error) });
+
+        reply({ ok: true, results: await syncMessages(userId, parsed.data.cursors) });
+      } catch (error) {
+        logger.error({ err: error, userId }, "messages:sync failed");
+        reply({ ok: false, error: "Failed to sync messages" });
       }
     });
   });

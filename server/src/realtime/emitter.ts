@@ -14,6 +14,7 @@ export interface MessageNewPayload {
   sender: string;
   text: string;
   createdAt: number;
+  seq: number;
 }
 
 export function emitMessageNew(recipientIds: string[], payload: MessageNewPayload) {

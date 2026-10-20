@@ -15,6 +15,7 @@ export interface ConversationRecord {
   admins: Types.ObjectId[];
   directKey?: string;
   lastMessage?: LastMessageRecord;
+  lastSeq: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +28,7 @@ const conversationSchema = new Schema<ConversationRecord>(
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     admins: [{ type: Schema.Types.ObjectId, ref: "User" }],
     directKey: { type: String, unique: true, sparse: true },
+    lastSeq: { type: Number, default: 0 },
     lastMessage: {
       type: new Schema(
         {

@@ -28,6 +28,10 @@ export interface Message {
   sender: string;
   text: string;
   createdAt: string;
+  /** Self-hosted server only (docs/delivery.md): per-conversation order, gaps allowed. */
+  seq?: number;
+  /** Self-hosted server only: the sender's idempotency key, echoed back. */
+  clientMessageId?: string;
 }
 
 /** Verified: GET /conversations/{id}/messages response. */

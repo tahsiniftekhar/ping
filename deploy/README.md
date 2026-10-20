@@ -66,6 +66,13 @@ docker compose up -d --build
 docker compose logs -f api
 ```
 
+After upgrading to the delivery protocol (`docs/delivery.md`), run the one-time, idempotent
+migration that numbers existing messages and updates indexes:
+
+```bash
+docker compose exec api node dist/scripts/backfill-seq.js
+```
+
 ## Backups
 
 Create a backup:

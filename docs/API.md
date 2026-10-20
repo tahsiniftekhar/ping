@@ -10,7 +10,8 @@ Socket.io: `https://frontend-task-chatapp.onrender.com` (host root, `/socket.io/
 > bugs fixed: phone search works (including a leading `+`), malformed ids return 400
 > `VALIDATION_ERROR` instead of 500, unknown conversations return 404 instead of
 > `200 null`, auth errors use 401 (`NO_TOKEN` / `INVALID_TOKEN`), and
-> `conversation:updated` fires only after successful mutations.
+> `conversation:updated` fires only after successful mutations. It also adds idempotent
+> sends, per-conversation `seq` and replay on reconnect — see [`delivery.md`](./delivery.md).
 
 ## Authentication
 
@@ -85,7 +86,7 @@ Socket.io: `https://frontend-task-chatapp.onrender.com` (host root, `/socket.io/
 
 - Only message history is paginated: `limit` (integer, default observed: full list)
   and `before` (cursor). `hasMore` flags whether older messages exist
-  (verified: `limit=1` on a 1-message conversation flips `hasMore` correctly).
+  (verified: `limit=1` on a 1-message conversation flips `hasMore` correctly (the exact-boundary case; see WRITEUP.md "Pagination end-of-history")).
   The exact semantics of `before` (message id vs timestamp) **unverified**.
 - `GET /conversations` and `GET /users/search` appear unpaginated.
 

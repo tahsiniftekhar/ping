@@ -20,6 +20,10 @@ export function fetchMessages(conversationId: string, options: FetchMessagesOpti
  * REST send, used when the socket is down. Verified: 200 with the persisted
  * message on success, but 200 with `null` for an unknown conversation.
  */
-export function postMessage(conversationId: string, text: string) {
-  return apiClient.post<Message | null>("/messages", { conversationId, text });
+export function postMessage(conversationId: string, text: string, clientMessageId?: string) {
+  return apiClient.post<Message | null>("/messages", {
+    conversationId,
+    text,
+    ...(clientMessageId && { clientMessageId }),
+  });
 }

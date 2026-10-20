@@ -90,7 +90,8 @@ architectural trade-offs.
 ## Backend
 
 `server/` is a standalone Node.js service implementing the same REST + Socket.io
-contract. See [`server/README.md`](./server/README.md) for local development and
+contract, plus idempotent sends, per-conversation ordering and replay on reconnect
+([`docs/delivery.md`](./docs/delivery.md)). See [`server/README.md`](./server/README.md) for local development and
 [`deploy/README.md`](./deploy/README.md) for production deployment (Docker Compose
 with MongoDB and Caddy for automatic HTTPS).
 
@@ -126,6 +127,13 @@ docker compose run --rm --no-deps api node dist/scripts/reset-demo.js
 # or, with plain docker:
 docker run --rm --network <net> -e MONGODB_URI=mongodb://mongo:27017/ping \
   ghcr.io/tahsiniftekhar/ping-api:latest node dist/scripts/reset-demo.js
+```
+
+After upgrading an existing database to the delivery protocol, run the idempotent
+migration once (it numbers legacy messages and updates indexes):
+
+```bash
+docker compose run --rm --no-deps api node dist/scripts/backfill-seq.js
 ```
 
 There are no passwords: login is phone + name. Demo accounts (phone): `+15550100001`

@@ -99,13 +99,13 @@ async function main() {
     const created = await Conversation.create(conversation);
     const docs = lines.map(([from, text], n) => {
       const at = new Date(start + n * 7 * MINUTE);
-      return { conversation: created._id, sender: id(from), text, createdAt: at, updatedAt: at };
+      return { conversation: created._id, sender: id(from), text, seq: n + 1, createdAt: at, updatedAt: at };
     });
     await Message.insertMany(docs);
     const last = docs[docs.length - 1]!;
     await Conversation.updateOne(
       { _id: created._id },
-      { $set: { lastMessage: { text: last.text, sender: last.sender, createdAt: last.createdAt } } },
+      { $set: { lastSeq: docs.length, lastMessage: { text: last.text, sender: last.sender, createdAt: last.createdAt } } },
       { timestamps: false },
     );
   }

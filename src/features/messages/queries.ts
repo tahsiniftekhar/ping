@@ -1,5 +1,6 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchMessages } from "@/features/messages/api";
+import type { Message } from "@/types/api";
 
 export const messageKeys = {
   all: ["messages"] as const,
@@ -37,8 +38,6 @@ export function useMessageHistory(conversationId: string | null) {
 }
 
 /** Flattened pages → oldest→newest messages for display. */
-export function chronologicMessages(
-  pages: { messages: { _id: string; conversation: string; sender: string; text: string; createdAt: string }[] }[],
-) {
+export function chronologicMessages(pages: { messages: Message[] }[]) {
   return pages.flatMap((page) => page.messages).reverse();
 }

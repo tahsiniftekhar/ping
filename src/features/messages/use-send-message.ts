@@ -1,14 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSocket } from "@/providers/socket-provider";
 import type { MessageSendAck } from "@/lib/socket/types";
 import { postMessage } from "@/features/messages/api";
+import { insertMessages } from "@/features/messages/cache";
+import { messageKeys } from "@/features/messages/queries";
+import { conversationKeys } from "@/features/conversations/queries";
+import type { Message } from "@/types/api";
 
 /**
- * A local, client-only message used for pending/sent/failed rendering.
- * `clientId` is purely local — never sent to the server, never treated as a
- * server message id. After a history refetch the server data replaces these.
+ * A local message used for pending/sent/failed rendering. `clientId` doubles
+ * as the `clientMessageId` idempotency key on delivery-capable servers
+ * (docs/delivery.md); the hosted API never sees it.
  */
 export interface PendingMessage {
   clientId: string;
@@ -23,11 +28,15 @@ export interface PendingMessage {
 const ACK_TIMEOUT_MS = 10_000;
 
 function newClientId(): string {
-  return `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return crypto.randomUUID();
 }
 
+/** The server answered and said no; resending the same payload won't help. */
+class SendRejected extends Error {}
+
 export function useSendMessage(conversationId: string, senderId: string) {
-  const { socket, connected } = useSocket();
+  const { socket, connected, delivery } = useSocket();
+  const queryClient = useQueryClient();
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
   // guards setState after unmount / conversation switch
   const alive = useRef(true);
@@ -39,8 +48,8 @@ export function useSendMessage(conversationId: string, senderId: string) {
   }, []);
 
   const emitWithAck = useCallback(
-    (text: string) =>
-      new Promise<void>((resolve, reject) => {
+    (text: string, clientMessageId?: string) =>
+      new Promise<Message | null>((resolve, reject) => {
         if (!socket) {
           reject(new Error("Not connected"));
           return;
@@ -60,26 +69,75 @@ export function useSendMessage(conversationId: string, senderId: string) {
         );
 
         socket.on("disconnect", onDisconnect);
-        socket.emit("message:send", { conversationId, text }, (ack?: MessageSendAck) => {
-            if (ack && ack.ok) return finish(resolve);
-            finish(() => reject(new Error(ack && "error" in ack ? ack.error : "Send failed")));
-          });
+        socket.emit(
+          "message:send",
+          { conversationId, text, ...(clientMessageId && { clientMessageId }) },
+          (ack?: MessageSendAck) => {
+            if (ack && ack.ok) return finish(() => resolve(ack.message ?? null));
+            finish(() => reject(new SendRejected(ack && "error" in ack ? ack.error : "Send failed")));
+          },
+        );
       }),
     [socket, conversationId],
   );
 
   /**
-   * Socket when live (acked delivery); REST when the socket is down so sending
-   * never blocks on the realtime link. No automatic REST retry after a socket
-   * timeout — the server may have stored the message and a resend would duplicate it.
+   * Socket when live, REST when the socket is down, so sending never blocks on
+   * the realtime link. With idempotent sends a lost ack also falls back to REST
+   * under the same key — the server returns the stored message instead of a
+   * duplicate. Legacy servers get no automatic resend for exactly that reason.
    */
   const deliver = useCallback(
-    async (text: string) => {
-      if (socket && connected) return emitWithAck(text);
-      const saved = await postMessage(conversationId, text);
+    async (text: string, clientId: string): Promise<Message | null> => {
+      const key = delivery ? clientId : undefined;
+      if (socket && connected) {
+        try {
+          return await emitWithAck(text, key);
+        } catch (cause) {
+          if (!key || cause instanceof SendRejected) throw cause;
+        }
+      }
+      const saved = await postMessage(conversationId, text, key);
       if (!saved) throw new Error("The server did not accept this message");
+      return saved;
     },
-    [socket, connected, conversationId, emitWithAck],
+    [socket, connected, delivery, conversationId, emitWithAck],
+  );
+
+  const attempt = useCallback(
+    async (message: PendingMessage) => {
+      try {
+        const stored = await deliver(message.text, message.clientId);
+        // The sender never receives its own `message:new`; refresh the sidebar preview.
+        void queryClient.invalidateQueries({ queryKey: conversationKeys.all });
+        if (stored) {
+          // Delivery-capable server: the ack carries the stored message, so no refetch is needed.
+          insertMessages(queryClient, conversationId, [stored]);
+          if (alive.current) {
+            setPendingMessages((previous) => previous.filter((item) => item.clientId !== message.clientId));
+          }
+          return;
+        }
+        if (alive.current) {
+          setPendingMessages((previous) =>
+            previous.map((item) => (item.clientId === message.clientId ? { ...item, status: "sent" } : item)),
+          );
+        }
+        // Legacy ack has no message; the refetched history replaces the local copy.
+        void queryClient.invalidateQueries({ queryKey: messageKeys.history(conversationId) });
+      } catch (cause) {
+        if (alive.current) {
+          setPendingMessages((previous) =>
+            previous.map((item) =>
+              item.clientId === message.clientId
+                ? { ...item, status: "failed", error: cause instanceof Error ? cause.message : "Send failed" }
+                : item,
+            ),
+          );
+        }
+      }
+    },
+    [deliver, queryClient, conversationId],
   );
 
   const send = useCallback(
@@ -96,40 +154,20 @@ export function useSendMessage(conversationId: string, senderId: string) {
         status: "pending",
       };
       setPendingMessages((previous) => [...previous, message]);
-
-      try {
-        await deliver(trimmed);
-        if (alive.current) {
-          setPendingMessages((previous) =>
-            previous.map((item) =>
-              item.clientId === message.clientId ? { ...item, status: "sent" } : item,
-            ),
-          );
-        }
-      } catch (cause) {
-        if (alive.current) {
-          setPendingMessages((previous) =>
-            previous.map((item) =>
-              item.clientId === message.clientId
-                ? { ...item, status: "failed", error: cause instanceof Error ? cause.message : "Send failed" }
-                : item,
-            ),
-          );
-        }
-      }
+      await attempt(message);
     },
-    [conversationId, senderId, deliver],
+    [conversationId, senderId, attempt],
   );
 
-  /** Retry sends the same text as a brand-new local message with a new clientId. */
+  /** Retries keep the same `clientId`, so a send that actually landed is not stored twice. */
   const retry = useCallback(
     async (failed: PendingMessage) => {
-      setPendingMessages((previous) => previous.filter((item) => item.clientId !== failed.clientId));
-      await send(failed.text);
+      const again: PendingMessage = { ...failed, status: "pending", error: undefined };
+      setPendingMessages((previous) => previous.map((item) => (item.clientId === failed.clientId ? again : item)));
+      await attempt(again);
     },
-    [send],
+    [attempt],
   );
-
   const dismiss = useCallback((clientId: string) => {
     setPendingMessages((previous) => previous.filter((item) => item.clientId !== clientId));
   }, []);

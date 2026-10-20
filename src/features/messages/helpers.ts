@@ -56,20 +56,25 @@ export function dateSeparatorLabel(value: number, now: Date = new Date()): strin
 }
 
 /**
- * Merges server history with local sends. Each server message absorbs at most
- * one local message, so identical repeated texts are not collapsed. Failed
- * local messages always stay visible.
+ * Merges server history with local sends. A local send disappears once the
+ * server holds it — matched by `clientMessageId` when the server supports it,
+ * otherwise heuristically. Failed sends stay visible until retried or dismissed.
  */
 export function mergeMessages(
   server: Message[],
   pending: PendingMessage[],
   currentUserId: string,
 ): TimelineMessage[] {
+  // Delivery-capable servers echo the idempotency key: an exact match, no guessing.
+  const echoed = new Set(server.flatMap((message) => (message.clientMessageId ? [message.clientMessageId] : [])));
   const used = new Set<string>();
   const visibleLocal = pending.filter((item) => {
+    if (echoed.has(item.clientId)) return false;
     if (item.status === "failed") return true;
+    // Legacy servers: match by sender, text and time. Each server message absorbs one local copy.
     const match = server.find(
       (message) =>
+        !message.clientMessageId &&
         !used.has(message._id) &&
         message.sender === item.sender &&
         message.text === item.text &&
@@ -79,22 +84,31 @@ export function mergeMessages(
     return !match;
   });
 
-  const fromServer: TimelineMessage[] = server.map((message) => ({
+  const fromServer: TimelineMessage[] = [...server].sort(oldestFirst).map((message) => ({
     key: message._id,
     text: message.text,
     sender: message.sender,
     createdAt: messageTimestamp(message.createdAt).getTime(),
     outgoing: message.sender === currentUserId,
   }));
-  const fromLocal: TimelineMessage[] = visibleLocal.map((item) => ({
-    key: item.clientId,
-    text: item.text,
-    sender: item.sender,
-    createdAt: item.createdAt,
-    outgoing: item.sender === currentUserId,
-    local: item,
-  }));
-  return [...fromServer, ...fromLocal].sort((a, b) => a.createdAt - b.createdAt);
+  // Unconfirmed sends have no position yet; they sit after everything the server has ordered.
+  const fromLocal: TimelineMessage[] = visibleLocal
+    .map((item) => ({
+      key: item.clientId,
+      text: item.text,
+      sender: item.sender,
+      createdAt: item.createdAt,
+      outgoing: item.sender === currentUserId,
+      local: item,
+    }))
+    .sort((a, b) => a.createdAt - b.createdAt);
+  return [...fromServer, ...fromLocal];
+}
+
+/** Server order: `seq` when both messages have one, otherwise time (legacy servers). */
+function oldestFirst(a: Message, b: Message): number {
+  if (a.seq !== undefined && b.seq !== undefined) return a.seq - b.seq;
+  return messageTimestamp(a.createdAt).getTime() - messageTimestamp(b.createdAt).getTime();
 }
 
 function sameRun(a: TimelineMessage, b: TimelineMessage): boolean {

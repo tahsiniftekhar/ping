@@ -93,11 +93,12 @@
 - Implemented cursor pagination around the actual API behavior.
 - Added scroll anchoring when older messages are loaded.
 
-### Pagination off-by-one
+### Pagination end-of-history
 
-- A conversation with exactly 30 messages can still return `hasMore: true`.
-- This causes one extra request returning an empty page.
-- Left it unchanged because it is harmless and appears to be an API-side issue.
+- The probe recorded in `docs/API.md` shows `hasMore` turns `false` when a page exactly exhausts history (`limit=1` on a 1-message conversation).
+- An earlier note claiming an off-by-one at exactly 30 messages had no backing observation and is withdrawn.
+- The client still guards against an empty page: `getNextPageParam` stops when a page has no messages, so either behavior is harmless.
+- The self-hosted server in `server/` fetches `limit + 1` rows to derive `hasMore`; `server/test/delivery.test.ts` covers exactly `limit` messages (`false`) and `limit + 1` (`true`, then `false`).
 
 ### Group mutation events
 
