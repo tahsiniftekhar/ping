@@ -119,12 +119,14 @@ proxies `https://api-ping.tahsiniftekhar.com` to the API container (port 4000).
   parsed as a number (the default in production is 1, for a single proxy).
 
 Demo data is reset with a full drop-and-seed (users, conversations, messages), safe to
-repeat, run it nightly from cron on the VPS:
+repeat, run it nightly from cron on the VPS. It refuses to start (exit 1, nothing touched)
+unless `DEMO_RESET_ALLOWED=true` is set and `MONGODB_URI` names the database `ping`; add
+`--check` to run only that guard:
 
 ```bash
-docker compose run --rm --no-deps api node dist/scripts/reset-demo.js
+docker compose run --rm --no-deps -e DEMO_RESET_ALLOWED=true api node dist/scripts/reset-demo.js
 # or, with plain docker:
-docker run --rm --network <net> -e MONGODB_URI=mongodb://mongo:27017/ping \
+docker run --rm --network <net> -e MONGODB_URI=mongodb://mongo:27017/ping -e DEMO_RESET_ALLOWED=true \
   ghcr.io/tahsiniftekhar/ping-api:latest node dist/scripts/reset-demo.js
 ```
 
