@@ -12,7 +12,7 @@ import {
 } from "react";
 import { fetchCurrentUser, loginWithApi } from "@/features/auth/api";
 import { getToken, removeToken, setToken } from "@/features/auth/token-storage";
-import { setTokenGetter } from "@/lib/api/client";
+import { ApiError, setTokenGetter } from "@/lib/api/client";
 import type { User } from "@/types/api";
 
 interface AuthContextValue {
@@ -23,6 +23,8 @@ interface AuthContextValue {
   login: (phone: string, name: string) => Promise<void>;
   logout: () => void;
 }
+
+const SESSION_RESTORE_RETRIES = 3;
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -39,21 +41,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!getToken()) return;
     let cancelled = false;
-    fetchCurrentUser()
-      .then((me) => {
-        if (!cancelled) setUser(me);
-      })
-      .catch(() => {
-        // Invalid/expired token or unreachable server: treat as logged out
-        // rather than blocking the app. The user can log in again.
-        if (!cancelled) {
-          removeToken();
-          setUser(null);
+
+    async function restoreSession() {
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          const me = await fetchCurrentUser();
+          if (!cancelled) setUser(me);
+          return;
+        } catch (cause) {
+          // Network errors and 5xx are usually the free-tier host waking up;
+          // only a 4xx means the token itself is bad and should be discarded.
+          const transient = !(cause instanceof ApiError) || cause.status === 0 || cause.status >= 500;
+          if (!transient) {
+            removeToken();
+            return;
+          }
+          if (attempt >= SESSION_RESTORE_RETRIES || cancelled) return;
+          await new Promise((resolve) => setTimeout(resolve, 2_000 * 2 ** attempt));
         }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
+      }
+    }
+
+    void restoreSession().finally(() => {
+      if (!cancelled) setIsLoading(false);
+    });
     return () => {
       cancelled = true;
     };
