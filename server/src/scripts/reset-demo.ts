@@ -1,7 +1,8 @@
 /**
  * Full reset of the demo data: drops the users, conversations and messages
  * collections, rebuilds their indexes, then inserts believable demo content.
- * Safe to run repeatedly. Needs only MONGODB_URI.
+ * Safe to run repeatedly. Needs MONGODB_URI and DEMO_RESET_ALLOWED=true, and refuses any
+ * database but "ping" (demo-reset-guard.ts). `--check` runs the guard only and touches nothing.
  *
  * Login is passwordless (phone + name), so the demo accounts are listed in the README.
  */
@@ -9,6 +10,7 @@ import mongoose, { Types } from "mongoose";
 import { Conversation } from "../modules/conversations/conversation.model.js";
 import { Message } from "../modules/messages/message.model.js";
 import { User } from "../modules/users/user.model.js";
+import { demoResetRefusal } from "./demo-reset-guard.js";
 
 const MINUTE = 60_000;
 
@@ -78,6 +80,15 @@ const GROUPS: { name: string; admin: number; members: number[]; lines: Line[] }[
 async function main() {
   const uri = process.env.MONGODB_URI;
   if (!uri) throw new Error("MONGODB_URI is required");
+  const refusal = demoResetRefusal(process.env);
+  if (refusal) {
+    console.error(`Refusing demo reset: ${refusal}`);
+    process.exit(1);
+  }
+  if (process.argv.includes("--check")) {
+    console.log("Demo reset allowed for this database (check only, nothing changed).");
+    return;
+  }
   await mongoose.connect(uri, { serverSelectionTimeoutMS: 10_000 });
 
   // Drop (ignoring "ns not found" on a fresh database), then rebuild the indexes.
