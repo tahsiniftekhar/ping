@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { avatarHue, initials } from "@/lib/avatar";
 
 const SIZES = {
+  "2xs": "size-5 text-[8px]",
   xs: "size-6 text-[9px]",
   sm: "size-8 text-[11px]",
   md: "size-10 text-xs",
@@ -55,7 +56,8 @@ export function GroupAvatar({
 }) {
   const [first, second] = members;
   const outer = size === "md" ? "size-10" : "size-8";
-  const inner: AvatarSize = size === "md" ? "sm" : "xs";
+  // Small enough that both members' initials stay visible.
+  const inner: AvatarSize = size === "md" ? "xs" : "2xs";
 
   if (!first || !second) {
     return <Avatar name={first?.name ?? "Group"} seed={first?._id ?? seed} size={size} className={className} />;
@@ -63,12 +65,12 @@ export function GroupAvatar({
 
   return (
     <span aria-hidden className={cn("relative shrink-0", outer, className)}>
-      <Avatar name={first.name} seed={first._id} size={inner} className="absolute top-0 left-0" />
+      <Avatar name={first.name} seed={first._id} size={inner} className="absolute top-0.5 left-0" />
       <Avatar
         name={second.name}
         seed={second._id}
         size={inner}
-        className="absolute right-0 bottom-0 ring-2 ring-card"
+        className="absolute right-0 bottom-0.5 ring-2 ring-card"
       />
     </span>
   );

@@ -179,6 +179,7 @@ export function UserSearch({
                   key={user._id}
                   id={optionId(index)}
                   role="option"
+                  aria-label={`${user.name}, ${user.phone}`}
                   aria-selected={selected}
                   aria-disabled={disabled}
                   ref={(node) => {
