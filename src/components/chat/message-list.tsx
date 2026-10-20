@@ -114,7 +114,13 @@ export function MessageList({
           <p className="pb-2 text-center text-xs text-subtle">Beginning of conversation</p>
         )}
         {items.map((item) =>
-          item.kind === "date" ? (
+          item.kind === "unread" ? (
+            <div key={item.key} className="my-3 flex items-center gap-3" role="separator">
+              <span className="h-px flex-1 bg-brand/40" />
+              <span className="text-[11px] font-semibold tracking-wide text-brand uppercase">New messages</span>
+              <span className="h-px flex-1 bg-brand/40" />
+            </div>
+          ) : item.kind === "date" ? (
             <div key={item.key} className="my-3 flex justify-center first:mt-0">
               <span className="rounded-full bg-muted px-3 py-1 text-[11px] font-medium text-muted-foreground">
                 {item.label}

@@ -13,9 +13,10 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { matchesConversationQuery, sortByActivity } from "@/features/conversations/helpers";
 import { useConversations } from "@/features/conversations/queries";
 import { isUnread, useReadState } from "@/features/conversations/read-state";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
-import { useSocket } from "@/providers/socket-provider";
+import { useSocket, type ConnectionStatus } from "@/providers/socket-provider";
 import type { User } from "@/types/api";
 
 type Filter = "all" | "direct" | "group";
@@ -28,13 +29,26 @@ const FILTERS: { value: Filter; label: string }[] = [
 
 const noopSubscribe = () => () => {};
 
+const SLOW_START_HINT_MS = 4_000;
+
 function WorkspaceLoading({ label = "Loading workspace…" }: { label?: string }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), SLOW_START_HINT_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <main className="flex h-dvh flex-1 items-center justify-center bg-background">
+    <main className="flex h-dvh flex-1 flex-col items-center justify-center gap-2 bg-background px-6 text-center">
       <div className="flex items-center gap-2 font-mono text-xs text-subtle">
         <span className="size-2 animate-pulse rounded-full bg-brand" />
         <span>{label}</span>
       </div>
+      {slow && (
+        <p className="max-w-xs text-[11px] leading-relaxed text-subtle">
+          The server sleeps when idle — waking it up can take up to a minute.
+        </p>
+      )}
     </main>
   );
 }
@@ -66,22 +80,38 @@ function ChatWorkspace() {
   return <Workspace user={user} />;
 }
 
+const STATUS_LABEL: Record<ConnectionStatus, string> = {
+  connected: "Live",
+  connecting: "Connecting",
+  reconnecting: "Reconnecting",
+  offline: "Offline",
+};
+
 function ConnectionPill() {
-  const { connected } = useSocket();
+  const { status, connected, reconnect } = useSocket();
   return (
-    <span
-      role="status"
+    <button
+      type="button"
+      onClick={reconnect}
+      disabled={connected}
+      title={connected ? "Realtime connection active" : "Retry connection now"}
+      aria-live="polite"
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold",
-        connected ? "bg-success/10 text-success" : "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors disabled:cursor-default",
+        connected && "bg-success/10 text-success",
+        !connected && status !== "offline" && "bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 dark:text-amber-400",
+        status === "offline" && "bg-destructive/10 text-destructive hover:bg-destructive/15",
       )}
     >
       <span
-        className={cn("size-1.5 rounded-full", connected ? "bg-success" : "animate-pulse bg-amber-500")}
+        className={cn(
+          "size-1.5 rounded-full",
+          connected ? "bg-success" : status === "offline" ? "bg-destructive" : "animate-pulse bg-amber-500",
+        )}
         aria-hidden
       />
-      {connected ? "Live" : "Connecting"}
-    </span>
+      {STATUS_LABEL[status]}
+    </button>
   );
 }
 
@@ -112,6 +142,21 @@ function Workspace({ user }: { user: User }) {
       ),
     [conversations, user._id, readState],
   );
+  // Snapshot the read mark when a conversation opens, before it gets marked read,
+  // so the panel can place a "new messages" divider.
+  const [unreadAnchor, setUnreadAnchor] = useState<{ id: string | null; since: number | null }>({
+    id: null,
+    since: null,
+  });
+  if (selectedConversation && unreadAnchor.id !== selectedConversation._id) {
+    setUnreadAnchor({
+      id: selectedConversation._id,
+      since: unreadIds.has(selectedConversation._id)
+        ? (readState.marks[selectedConversation._id] ?? readState.baseline)
+        : null,
+    });
+  }
+
   const unreadCount = [...unreadIds].filter((id) => id !== selectedId).length;
 
   const visibleConversations = conversations.filter(
@@ -141,9 +186,7 @@ function Workspace({ user }: { user: User }) {
     if (selectedId && data && !selectedConversation) router.replace("/chat", { scroll: false });
   }, [selectedId, data, selectedConversation, router]);
 
-  useEffect(() => {
-    document.title = unreadCount > 0 ? `(${unreadCount}) Ping` : "Chats — Ping";
-  }, [unreadCount]);
+  useDocumentTitle(unreadCount > 0 ? `(${unreadCount}) Ping` : "Chats — Ping");
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -317,6 +360,7 @@ function Workspace({ user }: { user: User }) {
               currentUserId={user._id}
               onConversationLeft={() => selectConversation(null)}
               onBack={() => selectConversation(null)}
+              unreadSince={unreadAnchor.id === selectedConversation._id ? unreadAnchor.since : null}
             />
           </div>
         ) : (

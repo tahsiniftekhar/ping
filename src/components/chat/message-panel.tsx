@@ -17,11 +17,14 @@ export function MessagePanel({
   currentUserId,
   onConversationLeft,
   onBack,
+  unreadSince = null,
 }: {
   conversation: Conversation;
   currentUserId: string;
   onConversationLeft: () => void;
   onBack?: () => void;
+  /** Read mark at the moment the conversation was opened; null when nothing was unread. */
+  unreadSince?: number | null;
 }) {
   const { data, isPending, isError, error, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } =
     useMessageHistory(conversation._id);
@@ -36,7 +39,7 @@ export function MessagePanel({
     () => mergeMessages(data ? chronologicMessages(data.pages) : [], pendingMessages, currentUserId),
     [data, pendingMessages, currentUserId],
   );
-  const items = useMemo(() => buildTimeline(messages), [messages]);
+  const items = useMemo(() => buildTimeline(messages, new Date(), unreadSince), [messages, unreadSince]);
 
   const senderNames = useMemo(() => {
     const names = new Map<string, string>();
@@ -64,7 +67,7 @@ export function MessagePanel({
       <div className="relative min-h-0 flex-1 bg-background/35">
         {isPending ? (
           <MessageSkeleton />
-        ) : isError ? (
+        ) : isError && !data ? (
           <MessageError error={error} onRetry={() => void refetch()} />
         ) : messages.length === 0 ? (
           <MessageEmptyState conversation={conversation} />

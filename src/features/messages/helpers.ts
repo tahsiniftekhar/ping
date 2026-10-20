@@ -30,6 +30,7 @@ export interface TimelineMessage {
 
 export type TimelineItem =
   | { kind: "date"; key: string; label: string }
+  | { kind: "unread"; key: string }
   | { kind: "message"; message: TimelineMessage; firstInRun: boolean; lastInRun: boolean };
 
 function startOfDay(date: Date): number {
@@ -102,9 +103,20 @@ function sameRun(a: TimelineMessage, b: TimelineMessage): boolean {
   );
 }
 
-/** Inserts date separators and marks first/last message of each same-sender run. */
-export function buildTimeline(messages: TimelineMessage[], now: Date = new Date()): TimelineItem[] {
+/**
+ * Inserts date separators, an optional "new messages" divider before the first
+ * incoming message newer than `unreadSince`, and marks same-sender runs.
+ */
+export function buildTimeline(
+  messages: TimelineMessage[],
+  now: Date = new Date(),
+  unreadSince: number | null = null,
+): TimelineItem[] {
   const items: TimelineItem[] = [];
+  const firstUnread =
+    unreadSince === null
+      ? undefined
+      : messages.find((message) => !message.outgoing && message.createdAt > unreadSince);
   messages.forEach((message, index) => {
     const previous = messages[index - 1];
     const next = messages[index + 1];
@@ -115,6 +127,7 @@ export function buildTimeline(messages: TimelineMessage[], now: Date = new Date(
         label: dateSeparatorLabel(message.createdAt, now),
       });
     }
+    if (message === firstUnread) items.push({ kind: "unread", key: "unread-divider" });
     items.push({
       kind: "message",
       message,
