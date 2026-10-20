@@ -2,6 +2,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchMessages } from "@/features/messages/api";
 
 export const messageKeys = {
+  all: ["messages"] as const,
   /**
    * History for one conversation. Kept granular (conversation id) so the
    * socket layer can patch a single conversation's cache later.
