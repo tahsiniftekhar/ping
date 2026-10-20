@@ -103,14 +103,14 @@ cd server && cp .env.example .env && npm install && npm run dev
 
 Then point `.env.local` at `http://localhost:4000/api` and `http://localhost:4000`.
 
-### Shared-VPS deployment (api + mongo behind an existing Caddy)
+### Docker deployment (behind a reverse proxy)
 
-`deploy/docker-compose.yml` bundles its own Caddy and is **not** used on the Lynor VPS.
-There only the `api` and `mongo` services run, behind the VPS's shared Caddy, which
-proxies `https://api-ping.tahsiniftekhar.com` to the API container (port 4000).
+`deploy/docker-compose.yml` bundles its own Caddy for a standalone server. Behind an existing
+reverse proxy, run only the `api` and `mongo` services and proxy
+`https://api-ping.tahsiniftekhar.com` to the API container (port 4000).
 
 - Image: `ghcr.io/tahsiniftekhar/ping-api` (tags `latest`, `sha-<short>`), built by
-  `.github/workflows/docker-image.yml` on every push to `main`. Never built on the VPS.
+  `.github/workflows/docker-image.yml` on every push to `main`. Never built on the server.
 - Container: `NODE_OPTIONS=--max-old-space-size=128` is baked in, runs as the non-root
   `node` user, logs to stdout, listens on `PORT` (default 4000). Sized for 192 MB / 0.5 CPU.
 - Required env: `NODE_ENV=production`, `MONGODB_URI`, `JWT_SECRET` (>= 32 chars),
@@ -119,7 +119,7 @@ proxies `https://api-ping.tahsiniftekhar.com` to the API container (port 4000).
   parsed as a number (the default in production is 1, for a single proxy).
 
 Demo data is reset with a full drop-and-seed (users, conversations, messages), safe to
-repeat, run it nightly from cron on the VPS. It refuses to start (exit 1, nothing touched)
+repeat, run it nightly from cron. It refuses to start (exit 1, nothing touched)
 unless `DEMO_RESET_ALLOWED=true` is set and `MONGODB_URI` names the database `ping`; add
 `--check` to run only that guard:
 
@@ -132,7 +132,7 @@ docker run --rm --network <net> -e MONGODB_URI=mongodb://mongo:27017/ping -e DEM
 
 There are no passwords: login is phone + name. Demo accounts (phone): `+15550100001`
 (Demo User, owner of most chats), `+15550100002`, `+15550100003`, `+15550100004`,
-`+15550100005`. There are no backups; the nightly reset restores the demo state.
+`+15550100005`. Demo data is reset and re-seeded nightly.
 
 ## API Documentation
 
