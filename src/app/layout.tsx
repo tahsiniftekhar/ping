@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Figtree, JetBrains_Mono } from "next/font/google";
 import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { SocketProvider } from "@/providers/socket-provider";
+import { themeInitScript } from "@/lib/theme";
 import "./globals.css";
 
 const figtree = Figtree({
@@ -18,13 +19,37 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ping - Chat App",
-  description: "Real-time 1-to-1 and group chat — Senior Frontend Engineer take-home",
+  title: {
+    default: "Ping — Realtime chat",
+    template: "%s — Ping",
+  },
+  description:
+    "Ping is a realtime messaging app for direct and group conversations, built with Next.js, TanStack Query and Socket.io.",
+  applicationName: "Ping",
+  openGraph: {
+    title: "Ping — Realtime chat",
+    description: "Direct and group conversations that stay in motion.",
+    type: "website",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F5F5F3" },
+    { media: "(prefers-color-scheme: dark)", color: "#0E0E10" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${figtree.variable} ${mono.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      className={`${figtree.variable} ${mono.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="min-h-full flex flex-col font-sans">
         <QueryProvider>
           <AuthProvider>

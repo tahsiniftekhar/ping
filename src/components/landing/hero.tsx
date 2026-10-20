@@ -100,15 +100,15 @@ export function Hero() {
             className="hero-reveal mb-5 flex items-center gap-2"
             style={{ animationDelay: "50ms" }}
           >
-            <span className="size-1.5 rounded-full bg-[#2878F0]" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1D63C8]">
+            <span className="size-1.5 rounded-full bg-brand" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-strong">
               Realtime conversation
             </span>
           </div>
 
           {/* Large Headline */}
           <h1 
-            className="hero-reveal text-5xl font-extrabold tracking-[-0.035em] text-[#171717] sm:text-6xl md:text-7xl lg:text-[4.75rem] xl:text-[5.25rem] leading-[0.98] mb-6"
+            className="hero-reveal text-5xl font-extrabold tracking-[-0.035em] text-foreground sm:text-6xl md:text-7xl lg:text-[4.75rem] xl:text-[5.25rem] leading-[0.98] mb-6"
             style={{ animationDelay: "150ms" }}
           >
             Conversations<br className="hidden sm:inline" /> that stay in<br className="hidden sm:inline" /> motion.
@@ -116,7 +116,7 @@ export function Hero() {
 
           {/* Description */}
           <p 
-            className="hero-reveal text-base sm:text-lg text-[#626262] leading-relaxed max-w-lg mb-8"
+            className="hero-reveal text-base sm:text-lg text-muted-foreground leading-relaxed max-w-lg mb-8"
             style={{ animationDelay: "250ms" }}
           >
             A realtime space for the conversations that matter. Talk directly. Gather in groups. Stay connected.
@@ -131,7 +131,7 @@ export function Hero() {
               href="/chat"
               className={cn(
                 buttonVariants({ variant: "default", size: "lg" }),
-                "rounded-full px-8 py-3.5 bg-[#171717] hover:bg-[#171717]/90 text-white font-medium text-sm transition-all active:scale-[0.98] shadow-none"
+                "rounded-full px-8 py-3.5 bg-foreground hover:bg-foreground/90 text-background font-medium text-sm transition-all active:scale-[0.98] shadow-none"
               )}
             >
               Open the conversation &rarr;
@@ -139,7 +139,7 @@ export function Hero() {
             <a
               href="#how-it-works"
               onClick={handleScrollToHowItWorks}
-              className="inline-flex h-11 items-center justify-center px-4 text-sm font-medium text-[#626262] hover:text-[#171717] transition-colors"
+              className="inline-flex h-11 items-center justify-center px-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               See how it works &darr;
             </a>
@@ -155,53 +155,53 @@ export function Hero() {
             
             {/* Bubble 1: Incoming Left (with presence indicator) */}
             <div className="hero-float-1 flex items-start gap-3.5 max-w-[88%] self-start translate-x-1 sm:translate-x-4">
-              <div className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-[#EAEAE7] text-xs font-semibold text-[#171717] border border-[#171717]/[0.08]">
+              <div className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground border border-foreground/[0.08]">
                 T
-                <span className="absolute bottom-0 right-0 block size-2.5 rounded-full bg-[#34C759] ring-2 ring-[#F5F5F3]" />
+                <span className="absolute bottom-0 right-0 block size-2.5 rounded-full bg-success ring-2 ring-background" />
               </div>
-              <div className="rounded-[18px] rounded-tl-sm bg-[#FAFAF8] border border-[#171717]/[0.08] px-4.5 py-3 shadow-[0_2px_12px_rgba(23,23,23,0.03)] text-[#171717]">
+              <div className="rounded-[18px] rounded-tl-sm bg-card border border-foreground/[0.08] px-4.5 py-3 shadow-[0_2px_12px_rgba(23,23,23,0.03)] text-foreground">
                 <p className="text-sm font-medium leading-snug">
                   Shall we gather here?
                 </p>
-                <span className="mt-1 block text-[10px] text-[#8A8A86] text-right font-mono">11:20 AM</span>
+                <span className="mt-1 block text-[10px] text-subtle text-right font-mono">11:20 AM</span>
               </div>
             </div>
 
             {/* Bubble 2: Outgoing Right */}
             <div className="hero-float-2 flex items-start gap-3.5 max-w-[88%] self-end -translate-x-2 sm:-translate-x-6">
-              <div className="rounded-[18px] rounded-tr-sm bg-[#171717] px-4.5 py-3 shadow-[0_4px_16px_rgba(23,23,23,0.06)] text-white">
+              <div className="rounded-[18px] rounded-tr-sm bg-foreground px-4.5 py-3 shadow-[0_4px_16px_rgba(23,23,23,0.06)] text-background">
                 <p className="text-sm font-medium leading-snug">
                   Sounds good. I&apos;ll invite the others.
                 </p>
-                <span className="mt-1 block text-[10px] text-white/50 text-right font-mono">11:21 AM</span>
+                <span className="mt-1 block text-[10px] text-background/50 text-right font-mono">11:21 AM</span>
               </div>
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#171717] text-xs font-semibold text-white shadow-sm">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background shadow-sm">
                 You
               </div>
             </div>
 
             {/* Bubble 3: Incoming Left */}
             <div className="hero-float-3 flex items-start gap-3.5 max-w-[88%] self-start translate-x-4 sm:translate-x-12">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#EAEAE7] text-xs font-semibold text-[#171717] border border-[#171717]/[0.08]">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground border border-foreground/[0.08]">
                 A
               </div>
-              <div className="rounded-[18px] rounded-tl-sm bg-[#FAFAF8] border border-[#171717]/[0.08] px-4.5 py-3 shadow-[0_2px_12px_rgba(23,23,23,0.03)] text-[#171717]">
+              <div className="rounded-[18px] rounded-tl-sm bg-card border border-foreground/[0.08] px-4.5 py-3 shadow-[0_2px_12px_rgba(23,23,23,0.03)] text-foreground">
                 <p className="text-sm font-medium leading-snug">
                   I&apos;m in as well. Let&apos;s get started.
                 </p>
-                <span className="mt-1 block text-[10px] text-[#8A8A86] text-right font-mono">11:21 AM</span>
+                <span className="mt-1 block text-[10px] text-subtle text-right font-mono">11:21 AM</span>
               </div>
             </div>
 
             {/* Bubble 4: Typing Indicator Left */}
             <div className="hero-float-4 flex items-start gap-3.5 max-w-[88%] self-start translate-x-2 sm:translate-x-5">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#EAEAE7] text-xs font-semibold text-[#171717] border border-[#171717]/[0.08]">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground border border-foreground/[0.08]">
                 M
               </div>
-              <div className="flex items-center gap-1.5 rounded-[18px] rounded-tl-sm bg-[#FAFAF8] border border-[#171717]/[0.08] px-5 py-3.5 shadow-[0_2px_12px_rgba(23,23,23,0.03)]">
-                <span className="typing-dot-1 block size-1.5 rounded-full bg-[#8A8A86]" />
-                <span className="typing-dot-2 block size-1.5 rounded-full bg-[#8A8A86]" />
-                <span className="typing-dot-3 block size-1.5 rounded-full bg-[#8A8A86]" />
+              <div className="flex items-center gap-1.5 rounded-[18px] rounded-tl-sm bg-card border border-foreground/[0.08] px-5 py-3.5 shadow-[0_2px_12px_rgba(23,23,23,0.03)]">
+                <span className="typing-dot-1 block size-1.5 rounded-full bg-subtle" />
+                <span className="typing-dot-2 block size-1.5 rounded-full bg-subtle" />
+                <span className="typing-dot-3 block size-1.5 rounded-full bg-subtle" />
               </div>
             </div>
 

@@ -34,6 +34,11 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-surface: var(--surface);
+  --color-subtle: var(--subtle);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-success: var(--success);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -71,6 +76,47 @@
   --sidebar-accent-foreground: #171717;
   --sidebar-border: rgba(23, 23, 23, 0.08);
   --sidebar-ring: #2878F0;
+  --surface: #FFFFFF;
+  --subtle: #8A8A86;
+  --brand: #2878F0;
+  --brand-strong: #1D63C8;
+  --success: #34C759;
+  color-scheme: light;
+}
+
+.dark {
+  --background: #0E0E10;
+  --foreground: #EDEDEC;
+  --card: #151517;
+  --card-foreground: #EDEDEC;
+  --popover: #18181B;
+  --popover-foreground: #EDEDEC;
+  --primary: #EDEDEC;
+  --primary-foreground: #0E0E10;
+  --secondary: #232326;
+  --secondary-foreground: #EDEDEC;
+  --muted: #232326;
+  --muted-foreground: #A1A1A6;
+  --accent: #14243D;
+  --accent-foreground: #7CB0FF;
+  --destructive: #F87171;
+  --border: rgba(237, 237, 236, 0.09);
+  --input: rgba(237, 237, 236, 0.14);
+  --ring: #4C8FF5;
+  --sidebar: #151517;
+  --sidebar-foreground: #EDEDEC;
+  --sidebar-primary: #EDEDEC;
+  --sidebar-primary-foreground: #0E0E10;
+  --sidebar-accent: #232326;
+  --sidebar-accent-foreground: #EDEDEC;
+  --sidebar-border: rgba(237, 237, 236, 0.09);
+  --sidebar-ring: #4C8FF5;
+  --surface: #1C1C1F;
+  --subtle: #7D7D82;
+  --brand: #4C8FF5;
+  --brand-strong: #7CB0FF;
+  --success: #30D158;
+  color-scheme: dark;
 }
 
 @layer base {
@@ -82,5 +128,33 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--foreground) 18%, transparent) transparent;
+  }
+}
+
+@keyframes message-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-message-in {
+  animation: message-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-message-in {
+    animation: none;
   }
 }
