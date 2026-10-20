@@ -14,60 +14,15 @@ import type { Socket } from "socket.io-client";
 import { conversationKeys } from "@/features/conversations/queries";
 import { messageKeys } from "@/features/messages/queries";
 import { createChatSocket } from "@/lib/socket/client";
-import type { SocketMessageNew } from "@/lib/socket/types";
-import type { InfiniteData, QueryClient } from "@tanstack/react-query";
-import type { MessageHistoryResponse } from "@/types/api";
+import { collectSyncCursors, fromSocketMessage, insertMessages, latestSeq } from "@/features/messages/cache";
+import {
+  DELIVERY_FEATURES,
+  type ServerHello,
+  type SocketMessageNew,
+  type SyncAck,
+  type SyncCursor,
+} from "@/lib/socket/types";
 import { useAuth } from "@/providers/auth-provider";
-
-/**
- * Normalizes a socket message into the REST message shape (the presentation
- * model): `id` → `_id`, epoch millis → ISO string. This is the only place the
- * two timestamp/id forms are bridged for the cache.
- */
-function toRestShape(message: SocketMessageNew) {
-  return {
-    _id: message.id,
-    conversation: message.conversation,
-    sender: message.sender,
-    text: message.text,
-    createdAt: new Date(message.createdAt).toISOString(),
-  };
-}
-
-/**
- * Inserts a realtime message into a conversation's first history page.
- * Pages are newest-first (`messages[0]` is the newest), so the new message is
- * unshifted onto page 0. Pagination metadata (`pageParam` cursors, `hasMore`)
- * is untouched. Duplicate ids are ignored. The updater form of setQueryData
- * reads the latest cache value atomically, so a concurrent refetch cannot be
- * clobbered by a stale read-then-write.
- */
-function insertIntoHistory(
-  queryClient: QueryClient,
-  conversationId: string,
-  socketMessage: SocketMessageNew,
-) {
-  queryClient.setQueryData<InfiniteData<MessageHistoryResponse> | undefined>(
-    messageKeys.history(conversationId),
-    (existing) => {
-      if (!existing) return undefined; // history never loaded; refetch covers it
-
-      const alreadyPresent = existing.pages.some((page) =>
-        page.messages.some((message) => message._id === socketMessage.id),
-      );
-      if (alreadyPresent) return existing;
-
-      return {
-        ...existing,
-        pages: existing.pages.map((page, index) =>
-          index === 0
-            ? { ...page, messages: [toRestShape(socketMessage), ...page.messages] }
-            : page,
-        ),
-      };
-    },
-  );
-}
 
 export type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "offline";
 
@@ -77,6 +32,11 @@ interface SocketContextValue {
   status: ConnectionStatus;
   /** Forces an immediate reconnect attempt (e.g. from a "Retry" control). */
   reconnect: () => void;
+  /**
+   * The server announced the delivery protocol (docs/delivery.md): idempotent
+   * sends, per-conversation `seq` and replay. False for the hosted API.
+   */
+  delivery: boolean;
 }
 
 const SocketContext = createContext<SocketContextValue>({
@@ -84,6 +44,7 @@ const SocketContext = createContext<SocketContextValue>({
   connected: false,
   status: "connecting",
   reconnect: () => {},
+  delivery: false,
 });
 
 export function useSocket(): SocketContextValue {
@@ -92,12 +53,14 @@ export function useSocket(): SocketContextValue {
 
 const MANUAL_RETRY_BASE_MS = 2_000;
 const MANUAL_RETRY_MAX_MS = 30_000;
+const SYNC_TIMEOUT_MS = 10_000;
 
 export function SocketProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, logout } = useAuth();
   const queryClient = useQueryClient();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
+  const [delivery, setDelivery] = useState(false);
 
   // One socket per authenticated session; connect on auth, disconnect on
   // logout or provider unmount. The setState calls below run from socket and
@@ -111,6 +74,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     setStatus(navigator.onLine ? "connecting" : "offline");
 
     let hasConnectedBefore = false;
+    let supportsDelivery = false;
     let manualRetryTimer: ReturnType<typeof setTimeout> | undefined;
     let manualAttempts = 0;
 
@@ -119,15 +83,54 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       if (!chatSocket.connected) chatSocket.connect();
     };
 
+    const refetchHistories = (conversationIds?: string[]) => {
+      if (!conversationIds) {
+        void queryClient.invalidateQueries({ queryKey: messageKeys.all });
+        return;
+      }
+      for (const id of conversationIds) {
+        void queryClient.invalidateQueries({ queryKey: messageKeys.history(id) });
+      }
+    };
+
+    /** Asks the server for everything after our cursors; refetches whatever it can't resume. */
+    const replay = (cursors: SyncCursor[]) => {
+      if (cursors.length === 0) return;
+      chatSocket
+        .timeout(SYNC_TIMEOUT_MS)
+        .emit("messages:sync", { cursors }, (error: Error | null, ack?: SyncAck) => {
+          if (error || !ack?.ok) {
+            refetchHistories(cursors.map((cursor) => cursor.conversationId));
+            return;
+          }
+          for (const result of ack.results) {
+            insertMessages(queryClient, result.conversationId, result.messages);
+            if (!result.complete) refetchHistories([result.conversationId]);
+          }
+        });
+    };
+
     chatSocket.on("connect", () => {
       manualAttempts = 0;
       setStatus("connected");
-      // The server does not replay events missed while offline; resync from REST.
       if (hasConnectedBefore) {
+        // Previews and order come from the server; one list request covers missed activity.
         void queryClient.invalidateQueries({ queryKey: conversationKeys.all });
-        void queryClient.invalidateQueries({ queryKey: messageKeys.all });
+        // Legacy servers don't replay missed events, so fall back to refetching every history.
+        // Delivery-capable servers replay from `server:hello` below instead.
+        if (!supportsDelivery) refetchHistories();
       }
       hasConnectedBefore = true;
+    });
+
+    chatSocket.on("server:hello", (hello: ServerHello) => {
+      supportsDelivery = DELIVERY_FEATURES.every((feature) => hello.features?.includes(feature));
+      setDelivery(supportsDelivery);
+      if (!supportsDelivery) return;
+      // Covers both reconnects and anything sent between the first history fetch and connect.
+      const { cursors, unresumable } = collectSyncCursors(queryClient);
+      refetchHistories(unresumable);
+      replay(cursors);
     });
 
     chatSocket.on("disconnect", (reason) => {
@@ -154,7 +157,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     });
 
     chatSocket.on("message:new", (message: SocketMessageNew) => {
-      insertIntoHistory(queryClient, message.conversation, message);
+      const seen = latestSeq(queryClient, message.conversation);
+      insertMessages(queryClient, message.conversation, [fromSocketMessage(message)]);
+      // A jump in `seq` means events were missed (e.g. a brief drop); fetch just the gap.
+      if (supportsDelivery && seen !== undefined && message.seq !== undefined && message.seq > seen + 1) {
+        replay([{ conversationId: message.conversation, afterSeq: seen }]);
+      }
       // Conversation list previews/order come from the server; never fabricated.
       void queryClient.invalidateQueries({ queryKey: conversationKeys.all });
     });
@@ -181,6 +189,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("offline", onOffline);
       document.removeEventListener("visibilitychange", onVisible);
       setStatus("connecting");
+      setDelivery(false);
       setSocket(null);
       chatSocket.removeAllListeners();
       chatSocket.disconnect();
@@ -193,8 +202,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   }, [socket]);
 
   const value = useMemo(
-    () => ({ socket, connected: status === "connected", status, reconnect }),
-    [socket, status, reconnect],
+    () => ({ socket, connected: status === "connected", status, reconnect, delivery }),
+    [socket, status, reconnect, delivery],
   );
 
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;

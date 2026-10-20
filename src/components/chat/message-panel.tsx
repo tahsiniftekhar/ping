@@ -1,14 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { GroupDetailsDialog } from "@/components/chat/group-details-dialog";
 import { MessageComposer } from "@/components/chat/message-composer";
 import { MessageHeader } from "@/components/chat/message-header";
 import { MessageList } from "@/components/chat/message-list";
 import { MessageEmptyState, MessageError, MessageSkeleton } from "@/components/chat/message-states";
 import { buildTimeline, mergeMessages } from "@/features/messages/helpers";
-import { chronologicMessages, messageKeys, useMessageHistory } from "@/features/messages/queries";
+import { chronologicMessages, useMessageHistory } from "@/features/messages/queries";
 import { useSendMessage } from "@/features/messages/use-send-message";
 import type { Conversation } from "@/types/api";
 
@@ -28,7 +27,6 @@ export function MessagePanel({
 }) {
   const { data, isPending, isError, error, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } =
     useMessageHistory(conversation._id);
-  const queryClient = useQueryClient();
   const { pendingMessages, connected, send, retry, dismiss } = useSendMessage(
     conversation._id,
     currentUserId,
@@ -49,10 +47,6 @@ export function MessagePanel({
     return names;
   }, [conversation]);
 
-  async function handleSend(text: string) {
-    await send(text);
-    void queryClient.invalidateQueries({ queryKey: messageKeys.history(conversation._id) });
-  }
 
   return (
     <section className="flex min-h-0 flex-1 flex-col bg-surface">
@@ -90,7 +84,7 @@ export function MessagePanel({
       <MessageComposer
         conversationId={conversation._id}
         connected={connected}
-        onSend={(text) => void handleSend(text)}
+        onSend={(text) => void send(text)}
       />
 
       {conversation.type === "group" && (
