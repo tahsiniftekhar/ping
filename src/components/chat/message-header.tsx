@@ -69,8 +69,9 @@ export function MessageHeader({
         {!connected && (
           <span
             role="status"
-            className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
+            className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-400"
           >
+            <span className="size-1.5 animate-pulse rounded-full bg-amber-500" aria-hidden />
             Reconnecting…
           </span>
         )}

@@ -39,7 +39,7 @@ export function MessageComposer({
 }) {
   const [draft, setDraft] = useState(() => readDraft(conversationId));
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const canSend = connected && draft.trim().length > 0;
+  const canSend = draft.trim().length > 0;
 
   useLayoutEffect(() => {
     const element = textareaRef.current;
@@ -65,7 +65,7 @@ export function MessageComposer({
   }
 
   return (
-    <footer className="border-t border-foreground/[0.08] bg-card p-3">
+    <footer className="border-t border-foreground/[0.08] bg-card px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <div className="flex items-end gap-2">
         <textarea
           ref={textareaRef}
@@ -88,14 +88,16 @@ export function MessageComposer({
           onClick={submit}
           disabled={!canSend}
           aria-label="Send message"
-          title={connected ? "Send message" : "Reconnecting…"}
+          title="Send message"
           className="flex size-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition-all hover:bg-foreground/90 active:scale-95 disabled:opacity-40"
         >
           <SendHorizontal className="size-4" />
         </button>
       </div>
       <div className="mt-1.5 flex items-center justify-between px-1 text-[11px] text-subtle">
-        <span className="hidden md:inline">Enter to send · Shift+Enter for new line</span>
+        <span className="hidden md:inline">
+          {connected ? "Enter to send · Shift+Enter for new line" : "Live updates paused — messages still send"}
+        </span>
         {draft.length >= COUNTER_THRESHOLD && (
           <span
             className={cn("ml-auto tabular-nums", draft.length >= MAX_LENGTH && "text-destructive")}

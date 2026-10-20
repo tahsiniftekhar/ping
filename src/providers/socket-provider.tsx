@@ -3,6 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -68,37 +69,59 @@ function insertIntoHistory(
   );
 }
 
+export type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "offline";
+
 interface SocketContextValue {
   socket: Socket | null;
   connected: boolean;
+  status: ConnectionStatus;
+  /** Forces an immediate reconnect attempt (e.g. from a "Retry" control). */
+  reconnect: () => void;
 }
 
-const SocketContext = createContext<SocketContextValue>({ socket: null, connected: false });
+const SocketContext = createContext<SocketContextValue>({
+  socket: null,
+  connected: false,
+  status: "connecting",
+  reconnect: () => {},
+});
 
 export function useSocket(): SocketContextValue {
   return useContext(SocketContext);
 }
 
+const MANUAL_RETRY_BASE_MS = 2_000;
+const MANUAL_RETRY_MAX_MS = 30_000;
+
 export function SocketProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const queryClient = useQueryClient();
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [connected, setConnected] = useState(false);
+  const [status, setStatus] = useState<ConnectionStatus>("connecting");
 
   // One socket per authenticated session; connect on auth, disconnect on
-  // logout or provider unmount. The login page never mounts an authed session,
-  // so it never connects. The setState calls below are event-callback
-  // registrations (they run on socket events, not during the effect).
+  // logout or provider unmount. The setState calls below run from socket and
+  // window event callbacks, not synchronously in the effect body.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isAuthenticated) return;
 
     const chatSocket = createChatSocket();
     setSocket(chatSocket);
+    setStatus(navigator.onLine ? "connecting" : "offline");
 
     let hasConnectedBefore = false;
+    let manualRetryTimer: ReturnType<typeof setTimeout> | undefined;
+    let manualAttempts = 0;
+
+    const connectNow = () => {
+      clearTimeout(manualRetryTimer);
+      if (!chatSocket.connected) chatSocket.connect();
+    };
+
     chatSocket.on("connect", () => {
-      setConnected(true);
+      manualAttempts = 0;
+      setStatus("connected");
       // The server does not replay events missed while offline; resync from REST.
       if (hasConnectedBefore) {
         void queryClient.invalidateQueries({ queryKey: conversationKeys.all });
@@ -106,7 +129,30 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       }
       hasConnectedBefore = true;
     });
-    chatSocket.on("disconnect", () => setConnected(false));
+
+    chatSocket.on("disconnect", (reason) => {
+      setStatus(navigator.onLine ? "reconnecting" : "offline");
+      // A server-side disconnect is not retried by socket.io automatically.
+      if (reason === "io server disconnect") connectNow();
+    });
+
+    chatSocket.on("connect_error", (error) => {
+      if (error.message === "Invalid token") {
+        // Expired/revoked JWT: REST would fail too, so end the session cleanly.
+        logout();
+        return;
+      }
+      setStatus(!navigator.onLine ? "offline" : hasConnectedBefore ? "reconnecting" : "connecting");
+      // Errors raised by server middleware disable socket.io's own reconnection
+      // (`active` becomes false); schedule our own capped backoff instead.
+      if (!chatSocket.active) {
+        const delay = Math.min(MANUAL_RETRY_BASE_MS * 2 ** manualAttempts, MANUAL_RETRY_MAX_MS);
+        manualAttempts += 1;
+        clearTimeout(manualRetryTimer);
+        manualRetryTimer = setTimeout(connectNow, delay);
+      }
+    });
+
     chatSocket.on("message:new", (message: SocketMessageNew) => {
       insertIntoHistory(queryClient, message.conversation, message);
       // Conversation list previews/order come from the server; never fabricated.
@@ -116,16 +162,40 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       void queryClient.invalidateQueries({ queryKey: conversationKeys.all });
     });
 
+    const onOnline = () => {
+      setStatus("reconnecting");
+      connectNow();
+    };
+    const onOffline = () => setStatus("offline");
+    // Background tabs get throttled timers; check the link as soon as the user is back.
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && !chatSocket.connected) connectNow();
+    };
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
-      setConnected(false);
+      clearTimeout(manualRetryTimer);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      document.removeEventListener("visibilitychange", onVisible);
+      setStatus("connecting");
       setSocket(null);
       chatSocket.removeAllListeners();
       chatSocket.disconnect();
     };
-  }, [isAuthenticated, queryClient]);
+  }, [isAuthenticated, queryClient, logout]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const value = useMemo(() => ({ socket, connected }), [socket, connected]);
+  const reconnect = useCallback(() => {
+    if (socket && !socket.connected) socket.connect();
+  }, [socket]);
+
+  const value = useMemo(
+    () => ({ socket, connected: status === "connected", status, reconnect }),
+    [socket, status, reconnect],
+  );
 
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
 }

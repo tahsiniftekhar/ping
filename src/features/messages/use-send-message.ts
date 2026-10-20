@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSocket } from "@/providers/socket-provider";
 import type { MessageSendAck } from "@/lib/socket/types";
+import { postMessage } from "@/features/messages/api";
 
 /**
  * A local, client-only message used for pending/sent/failed rendering.
@@ -40,7 +41,7 @@ export function useSendMessage(conversationId: string, senderId: string) {
   const emitWithAck = useCallback(
     (text: string) =>
       new Promise<void>((resolve, reject) => {
-        if (!socket || !connected) {
+        if (!socket) {
           reject(new Error("Not connected"));
           return;
         }
@@ -59,15 +60,26 @@ export function useSendMessage(conversationId: string, senderId: string) {
         );
 
         socket.on("disconnect", onDisconnect);
-        socket
-          .timeout(ACK_TIMEOUT_MS)
-          .emit("message:send", { conversationId, text }, (err: Error | null, ack?: MessageSendAck) => {
-            if (err) return finish(() => reject(new Error("No acknowledgement from server")));
+        socket.emit("message:send", { conversationId, text }, (ack?: MessageSendAck) => {
             if (ack && ack.ok) return finish(resolve);
             finish(() => reject(new Error(ack && "error" in ack ? ack.error : "Send failed")));
           });
       }),
-    [socket, connected, conversationId],
+    [socket, conversationId],
+  );
+
+  /**
+   * Socket when live (acked delivery); REST when the socket is down so sending
+   * never blocks on the realtime link. No automatic REST retry after a socket
+   * timeout — the server may have stored the message and a resend would duplicate it.
+   */
+  const deliver = useCallback(
+    async (text: string) => {
+      if (socket && connected) return emitWithAck(text);
+      const saved = await postMessage(conversationId, text);
+      if (!saved) throw new Error("The server did not accept this message");
+    },
+    [socket, connected, conversationId, emitWithAck],
   );
 
   const send = useCallback(
@@ -86,7 +98,7 @@ export function useSendMessage(conversationId: string, senderId: string) {
       setPendingMessages((previous) => [...previous, message]);
 
       try {
-        await emitWithAck(trimmed);
+        await deliver(trimmed);
         if (alive.current) {
           setPendingMessages((previous) =>
             previous.map((item) =>
@@ -106,7 +118,7 @@ export function useSendMessage(conversationId: string, senderId: string) {
         }
       }
     },
-    [conversationId, senderId, emitWithAck],
+    [conversationId, senderId, deliver],
   );
 
   /** Retry sends the same text as a brand-new local message with a new clientId. */

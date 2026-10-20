@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api/client";
-import type { MessageHistoryResponse } from "@/types/api";
+import type { Message, MessageHistoryResponse } from "@/types/api";
 
 export interface FetchMessagesOptions {
   limit: number;
@@ -14,4 +14,12 @@ export function fetchMessages(conversationId: string, options: FetchMessagesOpti
     `/conversations/${conversationId}/messages`,
     { searchParams },
   );
+}
+
+/**
+ * REST send, used when the socket is down. Verified: 200 with the persisted
+ * message on success, but 200 with `null` for an unknown conversation.
+ */
+export function postMessage(conversationId: string, text: string) {
+  return apiClient.post<Message | null>("/messages", { conversationId, text });
 }
