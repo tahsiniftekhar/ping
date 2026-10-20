@@ -1,7 +1,7 @@
 # Ping — Real-Time Chat App
 
-Real-time 1-to-1 and group chat (Next.js + TypeScript) against the provided
-external API (REST + Socket.io). Landing page showcase included.
+Ping is a realtime messaging app for direct and group conversations, built with
+Next.js, TypeScript, TanStack Query and Socket.io on top of an external chat API.
 
 ## Features
 
@@ -16,6 +16,24 @@ external API (REST + Socket.io). Landing page showcase included.
   anchoring, plus realtime cache integration.
 - **Landing page** — a quiet, editorial product page with a custom
   conversation-style hero.
+- **Dark mode** — light, dark, or system preference, applied without a flash
+  on load.
+- **Shareable conversation URLs** — each conversation is addressable at
+  `/chat?c=<id>`.
+- **Unread indicators** — client-side unread dots per conversation, unread
+  counts on the filter tabs, and a count in the browser tab title.
+- **Search and filters** — search conversations and filter between Direct and
+  Groups.
+- **Message presentation** — date separators, message grouping, link detection,
+  and copy message.
+- **Jump to latest** — a jump control shows the number of new messages received
+  while scrolled up.
+- **Drafts** — per-conversation drafts preserved (sessionStorage) while
+  switching chats.
+- **Reconnect resync** — conversations and message history are refetched after
+  a Socket.io reconnect, since missed events are not replayed.
+- **Cold-start aware sign-in** — the sign-in screen explains the delay when the
+  free-tier API is waking up.
 
 ## Tech Stack
 
