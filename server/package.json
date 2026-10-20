@@ -10,6 +10,8 @@
     "dev": "tsx watch --env-file=.env src/index.ts | pino-pretty",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
+    "reset-demo": "node dist/scripts/reset-demo.js",
+    "reset-demo:dev": "tsx --env-file=.env src/scripts/reset-demo.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
