@@ -1,0 +1,12 @@
+# API_DOMAIN comes from .env. Caddy issues and renews TLS certificates automatically.
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	# WebSockets (Socket.io) are proxied automatically by reverse_proxy.
+	reverse_proxy api:4000
+}

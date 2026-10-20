@@ -1,0 +1,68 @@
+# Production stack for the Ping API on a Linux VPS.
+# Run from this directory: docker compose up -d --build
+
+services:
+  api:
+    build: ../server
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://mongo:27017/ping
+      PORT: "4000"
+      # Trust the Caddy hop so req.ip and secure cookies/proto work correctly.
+      TRUST_PROXY: "1"
+    # No published ports: the API is only reachable through Caddy.
+    depends_on:
+      mongo:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    # WiredTiger defaults to ~50% of host RAM; keep it small for a small VPS.
+    command: ["--wiredTigerCacheSizeGB", "0.25"]
+    volumes:
+      - mongo-data:/data/db
+    # Never publish Mongo ports; it is reachable only on the internal network.
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping').ok\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      # HTTP/3 (QUIC)
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    env_file: .env
+    depends_on:
+      - api
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mongo-data:
+  caddy-data:
+  caddy-config:
