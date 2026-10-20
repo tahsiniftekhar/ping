@@ -96,7 +96,16 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     const chatSocket = createChatSocket();
     setSocket(chatSocket);
 
-    chatSocket.on("connect", () => setConnected(true));
+    let hasConnectedBefore = false;
+    chatSocket.on("connect", () => {
+      setConnected(true);
+      // The server does not replay events missed while offline; resync from REST.
+      if (hasConnectedBefore) {
+        void queryClient.invalidateQueries({ queryKey: conversationKeys.all });
+        void queryClient.invalidateQueries({ queryKey: messageKeys.all });
+      }
+      hasConnectedBefore = true;
+    });
     chatSocket.on("disconnect", () => setConnected(false));
     chatSocket.on("message:new", (message: SocketMessageNew) => {
       insertIntoHistory(queryClient, message.conversation, message);
