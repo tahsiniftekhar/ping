@@ -65,6 +65,10 @@ and a thought-process write-up.
 - Client → server: `message:send` `{ conversationId, text }`.
 - Server → client: `message:new`, `conversation:updated`.
 - The socket is created once per authenticated session and torn down on logout.
+- Delivery protocol (self-hosted `server/` only, see `docs/delivery.md`): the server
+  announces it with `server:hello`; the client then sends `clientMessageId`, orders by
+  `seq` and replays with `messages:sync`. Without `server:hello` (hosted API) the client
+  must keep the legacy behavior — never send the new fields unconditionally.
 
 ## Backend (`server/`)
 
