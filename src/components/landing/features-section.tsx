@@ -4,12 +4,12 @@ import { useState, useEffect } from "react";
 
 export function FeaturesSection() {
   // Mini-simulation 1: Phone login state
-  const [phoneStep, setPhoneStep] = useState<"typing" | "verifying" | "ready">("typing");
+  const [phoneStep, setPhoneStep] = useState<"typing" | "signing" | "ready">("typing");
   useEffect(() => {
     const interval = setInterval(() => {
       setPhoneStep((prev) => {
-        if (prev === "typing") return "verifying";
-        if (prev === "verifying") return "ready";
+        if (prev === "typing") return "signing";
+        if (prev === "signing") return "ready";
         return "typing";
       });
     }, 2400);
@@ -55,15 +55,15 @@ export function FeaturesSection() {
       {/* Structured Editorial 4-Block Grid */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         
-        {/* Block 01: Passwordless access */}
+        {/* Block 01: Sandbox sign-in */}
         <div className="flex flex-col justify-between rounded-[20px] border border-foreground/[0.08] bg-card p-6 sm:p-7 shadow-[0_2px_12px_rgba(23,23,23,0.02)] transition-colors hover:border-foreground/20">
           <div>
             <span className="font-mono text-xs font-semibold text-subtle">01</span>
             <h3 className="mt-3 text-lg font-bold tracking-tight text-foreground">
-              Passwordless access
+              Sandbox sign-in
             </h3>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-              Enter your phone number. No password to remember. Automatic registration behind the scenes.
+              Enter any phone number. No password and no code: this is a demo, and new numbers are registered on first sign-in.
             </p>
           </div>
 
@@ -74,8 +74,8 @@ export function FeaturesSection() {
               {phoneStep === "typing" && (
                 <span className="size-1.5 rounded-full bg-subtle animate-pulse" />
               )}
-              {phoneStep === "verifying" && (
-                <span className="text-[9px] text-subtle">verifying</span>
+              {phoneStep === "signing" && (
+                <span className="text-[9px] text-subtle">signing in</span>
               )}
               {phoneStep === "ready" && (
                 <span className="text-[9px] font-semibold text-success">active</span>
@@ -118,7 +118,7 @@ export function FeaturesSection() {
               Realtime by default
             </h3>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-              Messages, presence and conversation updates arrive immediately over persistent WebSocket streams.
+              New messages and conversation list updates are pushed over a persistent Socket.io connection.
             </p>
           </div>
 
