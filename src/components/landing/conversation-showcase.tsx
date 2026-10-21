@@ -38,19 +38,10 @@ const SHOWCASE_MESSAGES: ShowcaseMessage[] = [
 export function ConversationShowcase() {
   const [activeTab, setActiveTab] = useState<"group" | "direct">("group");
   const [visibleCount, setVisibleCount] = useState(2);
-  const [isTyping, setIsTyping] = useState(true);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setVisibleCount((prev) => {
-        if (prev < SHOWCASE_MESSAGES.length) {
-          setIsTyping(false);
-          return prev + 1;
-        } else {
-          setIsTyping(true);
-          return 2;
-        }
-      });
+      setVisibleCount((prev) => (prev < SHOWCASE_MESSAGES.length ? prev + 1 : 2));
     }, 4000);
     return () => clearInterval(timer);
   }, []);
@@ -76,22 +67,26 @@ export function ConversationShowcase() {
           </h2>
 
           <p className="text-base sm:text-lg text-muted-foreground leading-relaxed mb-6">
-            Every interaction is tuned to feel instantaneous and predictable. From instant socket deliveries to un-interrupted scroll history, the interface gets out of your way.
+            Messages arrive over Socket.io, and the server makes delivery predictable: every send carries a key, every message gets a position, and a dropped connection catches up on its own.
           </p>
 
           {/* Feature Points */}
           <div className="flex flex-col gap-3 font-mono text-xs text-muted-foreground">
             <div className="flex items-center gap-2.5">
               <span className="size-1.5 rounded-full bg-success" />
-              <span>Instant direct & multi-party spaces</span>
+              <span>Sends are idempotent: a retry never duplicates a message</span>
             </div>
             <div className="flex items-center gap-2.5">
               <span className="size-1.5 rounded-full bg-success" />
-              <span>Live typing & presence synchronization</span>
+              <span>Reconnect replays exactly what you missed</span>
             </div>
             <div className="flex items-center gap-2.5">
               <span className="size-1.5 rounded-full bg-success" />
-              <span>Anchored viewport preservation</span>
+              <span>Order comes from the server, not the clock</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="size-1.5 rounded-full bg-success" />
+              <span>Older history loads without moving your scroll position</span>
             </div>
           </div>
         </div>
@@ -175,19 +170,6 @@ export function ConversationShowcase() {
                     );
                   })}
 
-                  {/* Typing State */}
-                  {isTyping && (
-                    <div className="flex items-start gap-3 self-start">
-                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground border border-foreground/[0.08]">
-                        A
-                      </div>
-                      <div className="flex items-center gap-1 rounded-[16px] rounded-tl-xs bg-background border border-foreground/[0.08] px-3.5 py-3">
-                        <span className="size-1.5 rounded-full bg-subtle animate-pulse" />
-                        <span className="size-1.5 rounded-full bg-subtle animate-pulse" style={{ animationDelay: "200ms" }} />
-                        <span className="size-1.5 rounded-full bg-subtle animate-pulse" style={{ animationDelay: "400ms" }} />
-                      </div>
-                    </div>
-                  )}
                 </>
               ) : (
                 <div className="flex flex-col gap-4">

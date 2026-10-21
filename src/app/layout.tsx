@@ -18,18 +18,28 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
+const description =
+  "Realtime chat: Next.js client and a self-hosted Express, Socket.io and MongoDB API with idempotent sends and replay on reconnect.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://ping.tahsiniftekhar.com"),
   title: {
     default: "Ping — Realtime chat",
     template: "%s — Ping",
   },
-  description:
-    "Ping is a realtime messaging app for direct and group conversations, built with Next.js, TanStack Query and Socket.io.",
+  description,
   applicationName: "Ping",
   openGraph: {
     title: "Ping — Realtime chat",
-    description: "Direct and group conversations that stay in motion.",
+    description,
+    url: "/",
+    siteName: "Ping",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Ping — Realtime chat",
+    description,
   },
 };
 
